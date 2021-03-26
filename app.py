@@ -56,7 +56,7 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        for i in range(0, 5):
+        for i in range(0, n):
             x = anotherWindow()
             x.print(sigbufs[i], i, signal_labels[i])
 
