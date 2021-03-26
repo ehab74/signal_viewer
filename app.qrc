@@ -1,0 +1,14 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>sig.png</file>
+    <file>save.png</file>
+    <file>open.png</file>
+    <file>back.png</file>
+    <file>next.png</file>
+    <file>play.png</file>
+    <file>stop.png</file>
+    <file>zoom in.png</file>
+    <file>zoom out.png</file>
+    <file>spectr.png</file>
+  </qresource>
+</RCC>
