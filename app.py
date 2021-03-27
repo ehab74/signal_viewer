@@ -18,6 +18,24 @@ from scipy import signal
 import matplotlib.pyplot as plt
 
 class Ui_MainWindow(QMainWindow):
+    def Spectrogram(self,arr,no,title):
+        mydialog = QtWidgets.QMdiSubWindow(self)
+        mydialog.figure = plt.figure()
+        mydialog.canvas = FigureCanvas(mydialog.figure)
+        mydialog.figure.clear()
+        f, t, Sxx = signal.spectrogram(arr, fs=200)
+        ax = mydialog.figure.add_subplot()
+        sp = ax.pcolormesh(t, f, 10*np.log10(Sxx))
+        # ax.colorbar()
+        mydialog.canvas.draw()
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("sig.png"),
+                       QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        mydialog.setWindowIcon(icon)
+        mydialog.setWindowTitle( str(no+1)+'#' + title)
+        mydialog.setWidget(mydialog.canvas)
+        self.mdi.addSubWindow(mydialog)
+        mydialog.show()
     def openSecondDialog(self,arr,no,title):
         mydialog = QtWidgets.QMdiSubWindow(self)
         icon = QtGui.QIcon()
@@ -43,12 +61,6 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        f, t, Sxx = signal.spectrogram(sigbufs[1])
-        plt.pcolormesh(t, f, 10*np.log10(Sxx))
-        plt.ylabel('Frequency [Hz]')
-        plt.xlabel('Time [sec]')
-        plt.colorbar()
-        plt.show()
         for i in range(0,5):
             print(i)
             self.graphWidget = pg.PlotWidget()
