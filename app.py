@@ -72,21 +72,6 @@ class Ui_MainWindow(QMainWindow):
         MainWindow.setStyleSheet("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        # self.mdiArea = QtWidgets.QMdiArea(self.centralwidget)
-        # # sizePolicy = QtWidgets.QSizePolicy(
-        # #     QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
-        # # sizePolicy.setHorizontalStretch(1000)
-        # # sizePolicy.setVerticalStretch(1000)
-        # # sizePolicy.setHeightForWidth(
-        # #     self.mdiArea.sizePolicy().hasHeightForWidth())
-        # # self.mdiArea.setSizePolicy(sizePolicy)
-        # self.mdiArea.setStyleSheet("background-color: rgb(255, 255, 255);")
-        # self.mdiArea.setFrameShape(QtWidgets.QFrame.NoFrame)
-        # # self.mdiArea.setSizeAdjustPolicy(
-        # #     QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
-        # # self.mdiArea.setActivationOrder(
-        # #     QtWidgets.QMdiArea.ActivationHistoryOrder)
-        # self.mdiArea.setObjectName("mdiArea")
         self.mdi = QtWidgets.QMdiArea()
         MainWindow.setCentralWidget(self.mdi)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
