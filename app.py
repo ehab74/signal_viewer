@@ -12,41 +12,27 @@ import pyedflib
 import numpy as np
 import pyqtgraph as pg
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget, QMdiArea, QAction, QMdiSubWindow, QTextEdit
+from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
 from random import randint
 
 
-class anotherWindow (QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.mdi = QMdiArea()
-        self.setCentralWidget(self.mdi)
-
-    def print(self, Sample, SampleNumber, SampleTitle):
-
-        x = pg.plot()
-        _translate = QtCore.QCoreApplication.translate
+class Ui_MainWindow(QMainWindow):
+    def openSecondDialog(self,arr,no,title):
+        mydialog = QtWidgets.QMdiSubWindow(self)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        x.setWindowIcon(icon)
-        x.setWindowTitle(_translate(
-            "MainWindow", str(SampleNumber+1)+'#' + SampleTitle))
-
-        # x.setCentralWidget(x.graphWidget)
-        x.setBackground('w')
-        x.plot(Sample, pen='b')
-        x.showGrid(x=True, y=True)
-        x.setXRange(0, 270, padding=0)
-        x.setYRange(-150, 150, padding=0)
-
-        sub = QMdiSubWindow()
-        sub.setWidget(QMainWindow)
-        self.mdi.addSubWindow(sub)
-        sub.show()
-
-
-class Ui_MainWindow(QMainWindow):
+        mydialog.setWindowIcon(icon)
+        mydialog.setWindowTitle( str(no+1)+'#' + title)
+        mydialog.graphWidget = pg.PlotWidget()
+        mydialog.setWidget(mydialog.graphWidget)
+        mydialog.graphWidget.setBackground('w')
+        mydialog.graphWidget.plot(arr, pen='b')
+        mydialog.graphWidget.showGrid(x=True, y=True)
+        mydialog.graphWidget.setXRange(0, 1000, padding=0)
+        mydialog.graphWidget.setYRange(-150, 150, padding=0)
+        self.mdi.addSubWindow(mydialog)
+        mydialog.show()
 
     def read_file(self, filename):
         file_name = pyedflib.data.get_generator_filename()
@@ -56,17 +42,20 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        for i in range(0, n):
-            x = anotherWindow()
-            x.print(sigbufs[i], i, signal_labels[i])
 
+        for i in range(0,5):
+            print(i)
+            self.graphWidget = pg.PlotWidget()
+            self.openSecondDialog(sigbufs[i],i,signal_labels[i])
+
+        self.mdi.tileSubWindows()
     def browsefiles(self):
         fname = QFileDialog.getOpenFileName(self, 'Open file', '../')
         self.read_file(fname[0])
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(579, 493)
+        MainWindow.showMaximized()
         font = QtGui.QFont()
         font.setBold(False)
         font.setWeight(50)
@@ -79,7 +68,7 @@ class Ui_MainWindow(QMainWindow):
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.mdiArea = QtWidgets.QMdiArea(self.centralwidget)
-        self.mdiArea.setGeometry(QtCore.QRect(0, 0, 16777215, 16777215))
+        self.mdiArea.setGeometry(QtCore.QRect(0, 0, 1366, 630))
         sizePolicy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
         sizePolicy.setHorizontalStretch(0)
@@ -94,6 +83,7 @@ class Ui_MainWindow(QMainWindow):
         self.mdiArea.setActivationOrder(
             QtWidgets.QMdiArea.ActivationHistoryOrder)
         self.mdiArea.setObjectName("mdiArea")
+        self.mdi = self.mdiArea
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 579, 21))
@@ -292,7 +282,7 @@ class Ui_MainWindow(QMainWindow):
             "MainWindow", "Save signal as..."))
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
-        self.actionExit.setShortcut(_translate("MainWindow", "Alt+F4"))
+        self.actionExit.setShortcut(_translate("MainWindow", "Ctrl+F4"))
         self.actionPlay_as_fast_as_possible_2.setText(
             _translate("MainWindow", "Play as fast as possible"))
         self.actionRepeat_forever_play_in_loop.setText(
@@ -309,7 +299,6 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
-    another = anotherWindow()
     ui.setupUi(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
