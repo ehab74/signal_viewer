@@ -17,14 +17,15 @@ from random import randint
 from scipy import signal
 import matplotlib.pyplot as plt
 
+
 class Ui_MainWindow(QMainWindow):
-    def openSecondDialog(self,arr,no,title):
+    def openSecondDialog(self, arr, no, title):
         mydialog = QtWidgets.QMdiSubWindow(self)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle( str(no+1)+'#' + title)
+        mydialog.setWindowTitle(str(no+1)+'#' + title)
         mydialog.graphWidget = pg.PlotWidget()
         mydialog.setWidget(mydialog.graphWidget)
         mydialog.graphWidget.setBackground('w')
@@ -43,18 +44,19 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        f, t, Sxx = signal.spectrogram(sigbufs[1], fs=200)
+        f, t, Sxx = signal.spectrogram(sigbufs[4], fs=200)
         plt.pcolormesh(t, f, 10*np.log10(Sxx))
         plt.ylabel('Frequency [Hz]')
         plt.xlabel('Time [sec]')
         plt.colorbar()
         plt.show()
-        for i in range(0,5):
+        for i in range(0, n):
             print(i)
             self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(sigbufs[i],i,signal_labels[i])
+            self.openSecondDialog(sigbufs[i], i,     signal_labels[i])
 
         self.mdi.tileSubWindows()
+
     def browsefiles(self):
         fname = QFileDialog.getOpenFileName(self, 'Open file', '../')
         self.read_file(fname[0])
