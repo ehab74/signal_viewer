@@ -14,7 +14,8 @@ import pyqtgraph as pg
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
 from random import randint
-
+from scipy import signal
+import matplotlib.pyplot as plt
 
 class Ui_MainWindow(QMainWindow):
     def openSecondDialog(self,arr,no,title):
@@ -42,7 +43,12 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-
+        f, t, Sxx = signal.spectrogram(sigbufs[1], fs=200)
+        plt.pcolormesh(t, f, 10*np.log10(Sxx))
+        plt.ylabel('Frequency [Hz]')
+        plt.xlabel('Time [sec]')
+        plt.colorbar()
+        plt.show()
         for i in range(0,5):
             print(i)
             self.graphWidget = pg.PlotWidget()
