@@ -61,7 +61,6 @@ class Ui_MainWindow(QMainWindow):
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.showMaximized()
         font = QtGui.QFont()
         font.setBold(False)
         font.setWeight(50)
@@ -73,24 +72,8 @@ class Ui_MainWindow(QMainWindow):
         MainWindow.setStyleSheet("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        self.mdiArea = QtWidgets.QMdiArea(self.centralwidget)
-        self.mdiArea.setGeometry(QtCore.QRect(0, 0, 1366, 630))
-        sizePolicy = QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(
-            self.mdiArea.sizePolicy().hasHeightForWidth())
-        self.mdiArea.setSizePolicy(sizePolicy)
-        self.mdiArea.setStyleSheet("background-color: rgb(255, 255, 255);")
-        self.mdiArea.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.mdiArea.setSizeAdjustPolicy(
-            QtWidgets.QAbstractScrollArea.AdjustToContents)
-        self.mdiArea.setActivationOrder(
-            QtWidgets.QMdiArea.ActivationHistoryOrder)
-        self.mdiArea.setObjectName("mdiArea")
-        self.mdi = self.mdiArea
-        MainWindow.setCentralWidget(self.centralwidget)
+        self.mdi = QtWidgets.QMdiArea()
+        MainWindow.setCentralWidget(self.mdi)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 579, 21))
 
@@ -253,7 +236,7 @@ class Ui_MainWindow(QMainWindow):
         self.menuPlay_navigate.setTitle(
             _translate("MainWindow", "Play && navigate"))
         self.menuInstruments_markers.setTitle(
-            _translate("MainWindow", "Signal tools"))
+            _translate("MainWindow", "3D tools"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.actionOpen.setText(_translate("MainWindow", "Open signal..."))
         self.actionOpen.setStatusTip(
@@ -280,15 +263,15 @@ class Ui_MainWindow(QMainWindow):
             _translate("MainWindow", "Show previous zoom"))
         self.actionZoomOut.setShortcut(_translate("MainWindow", "Ctrl+Down"))
         self.actionSpectrogram.setText(_translate(
-            "MainWindow", "FFT Spectrum analysis"))
+            "MainWindow", "Spectrogram"))
         self.actionSpectrogram.setStatusTip(_translate(
             "MainWindow", "Spectrum of the visible part of the signal"))
-        self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+F"))
+        self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
         self.actionSave_as.setText(_translate(
             "MainWindow", "Save signal as..."))
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
-        self.actionExit.setShortcut(_translate("MainWindow", "Ctrl+F4"))
+        self.actionExit.setShortcut(_translate("MainWindow", "Alt+F4"))
         self.actionPlay_as_fast_as_possible_2.setText(
             _translate("MainWindow", "Play as fast as possible"))
         self.actionRepeat_forever_play_in_loop.setText(
