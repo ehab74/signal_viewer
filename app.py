@@ -19,6 +19,16 @@ import matplotlib.pyplot as plt
 
 
 class Ui_MainWindow(QMainWindow):
+
+    signals = []
+
+    def zoomIn(self):
+        self.signals[0].plotItem.getViewBox().scaleBy(x=0.5, y=1)
+    # def zoomOut(self):
+
+    def zoomOut(self):
+        self.signals[0].plotItem.getViewBox().scaleBy(x=2, y=1)
+
     def Spectrogram(self, arr, no, title):
         mydialog = QtWidgets.QMdiSubWindow(self)
         mydialog.figure = plt.figure()
@@ -51,9 +61,14 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget.plot(arr, pen='b')
         mydialog.graphWidget.showGrid(x=True, y=True)
         mydialog.graphWidget.setXRange(0, 1000, padding=0)
-        mydialog.graphWidget.setYRange(-150, 150, padding=0)
+        #mydialog.graphWidget.setYRange(-150, 150, padding=0)
+        self.signals.append(mydialog.graphWidget)
+
+        # mydialog.graphWidget.enableAutoRange(enable=True)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
+        self.actionZoomIn.setEnabled(True)
+        self.actionZoomOut.setEnabled(True)
 
     def read_file(self, filename):
         file_name = pyedflib.data.get_generator_filename()
@@ -63,15 +78,9 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        f, t, Sxx = signal.spectrogram(sigbufs[4], fs=200)
-        plt.pcolormesh(t, f, 10*np.log10(Sxx))
-        plt.ylabel('Frequency [Hz]')
-        plt.xlabel('Time [sec]')
-        plt.colorbar()
-        plt.show()
         for i in range(0, n):
             self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(sigbufs[i], i,     signal_labels[i])
+            self.openSecondDialog(sigbufs[i], i, signal_labels[i])
 
         self.mdi.tileSubWindows()
 
@@ -245,6 +254,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionExit.triggered.connect(MainWindow.close)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.actionOpen.triggered.connect(lambda: self.browsefiles())
+        self.actionZoomIn.triggered.connect(lambda: self.zoomIn())
+        self.actionZoomOut.triggered.connect(lambda: self.zoomOut())
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
