@@ -43,7 +43,7 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        f, t, Sxx = signal.spectrogram(sigbufs[1], fs=200)
+        f, t, Sxx = signal.spectrogram(sigbufs[1])
         plt.pcolormesh(t, f, 10*np.log10(Sxx))
         plt.ylabel('Frequency [Hz]')
         plt.xlabel('Time [sec]')
