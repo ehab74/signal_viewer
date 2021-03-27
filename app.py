@@ -19,6 +19,25 @@ import matplotlib.pyplot as plt
 
 
 class Ui_MainWindow(QMainWindow):
+    def Spectrogram(self, arr, no, title):
+        mydialog = QtWidgets.QMdiSubWindow(self)
+        mydialog.figure = plt.figure()
+        mydialog.canvas = FigureCanvas(mydialog.figure)
+        mydialog.figure.clear()
+        f, t, Sxx = signal.spectrogram(arr, fs=200)
+        ax = mydialog.figure.add_subplot()
+        sp = ax.pcolormesh(t, f, 10*np.log10(Sxx))
+        # ax.colorbar()
+        mydialog.canvas.draw()
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("sig.png"),
+                       QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        mydialog.setWindowIcon(icon)
+        mydialog.setWindowTitle(str(no+1)+'#' + title)
+        mydialog.setWidget(mydialog.canvas)
+        self.mdi.addSubWindow(mydialog)
+        mydialog.show()
+
     def openSecondDialog(self, arr, no, title):
         mydialog = QtWidgets.QMdiSubWindow(self)
         icon = QtGui.QIcon()
@@ -51,7 +70,6 @@ class Ui_MainWindow(QMainWindow):
         plt.colorbar()
         plt.show()
         for i in range(0, n):
-            print(i)
             self.graphWidget = pg.PlotWidget()
             self.openSecondDialog(sigbufs[i], i,     signal_labels[i])
 
@@ -74,21 +92,6 @@ class Ui_MainWindow(QMainWindow):
         MainWindow.setStyleSheet("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        # self.mdiArea = QtWidgets.QMdiArea(self.centralwidget)
-        # # sizePolicy = QtWidgets.QSizePolicy(
-        # #     QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
-        # # sizePolicy.setHorizontalStretch(1000)
-        # # sizePolicy.setVerticalStretch(1000)
-        # # sizePolicy.setHeightForWidth(
-        # #     self.mdiArea.sizePolicy().hasHeightForWidth())
-        # # self.mdiArea.setSizePolicy(sizePolicy)
-        # self.mdiArea.setStyleSheet("background-color: rgb(255, 255, 255);")
-        # self.mdiArea.setFrameShape(QtWidgets.QFrame.NoFrame)
-        # # self.mdiArea.setSizeAdjustPolicy(
-        # #     QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
-        # # self.mdiArea.setActivationOrder(
-        # #     QtWidgets.QMdiArea.ActivationHistoryOrder)
-        # self.mdiArea.setObjectName("mdiArea")
         self.mdi = QtWidgets.QMdiArea()
         MainWindow.setCentralWidget(self.mdi)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
