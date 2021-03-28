@@ -30,23 +30,42 @@ class MdiWind(QtWidgets.QMdiSubWindow):
 
 class Ui_MainWindow(QMainWindow):
     signals = []
+    signals2 = []
     count = 0
     j = 0
 
-    def zoomIn(self):
-        self.signals2[0].plotItem.getViewBox().scaleBy(x=0.5, y=1)
+    def titleIndex(self, subWindow):
+        subWindowTitle = subWindow.windowTitle()
+        if(subWindowTitle[1] != '#'):
+            subWindowIndex = int(subWindowTitle[0])*10 + int(subWindowTitle[1])
+        else:
+            subWindowIndex = int(subWindowTitle[0])
+        if subWindowTitle.find("Time-FFT") == -1:
+            return (subWindowIndex, True)
+        else:
+            return (subWindowIndex, False)
 
-    def zoomOut(self):
-        self.signals2[0].plotItem.getViewBox().scaleBy(x=2, y=1)
+    def zoomIn(self, subWindow):
+        subWindowIndex, flag = self.titleIndex(subWindow)
+        if flag:
+            self.signals2[subWindowIndex -
+                          1][0].plotItem.getViewBox().scaleBy(x=0.5, y=1)
 
-    def play(self):
-        while 400+self.j < self.signals2[0][1]:
-            self.j += 500
-            self.signals2[0][0].setXRange(0+self.j, 400+self.j)
-            QtWidgets.QApplication.processEvents()
-        self.j = 0
+    def zoomOut(self, subWindow):
+        subWindowIndex, flag = self.titleIndex(subWindow)
+        if flag:
+            self.signals2[subWindowIndex -
+                          1][0].plotItem.getViewBox().scaleBy(x=2, y=1)
 
-    signals2 = []
+    def play(self, subWindow):
+        subWindowIndex, flag = self.titleIndex(subWindow)
+        if flag:
+            while 40+self.j < self.signals2[subWindowIndex-1][1]:
+                self.j += 40
+                self.signals2[subWindowIndex -
+                              1][0].setXRange(0+self.j, 400+self.j)
+                QtWidgets.QApplication.processEvents()
+            self.j = 0
 
     def Spectrogram(self, arr, title):
         mydialog = MdiWind(self)
@@ -69,14 +88,12 @@ class Ui_MainWindow(QMainWindow):
 
     def openSpectro(self, subWindow):
         self.signals.append(0)
-        x = subWindow.windowTitle()
-        if x.find("Time-FFT") == -1:
-            if(x[1] != '#'):
-                y = int(x[0])*10 + int(x[1])
-            else:
-                y = int(x[0])
+        self.signals2.append((0, 0))
+        subWindowIndex, flag = self.titleIndex(subWindow)
+        if flag:
             self.count = self.count+1
-            self.Spectrogram(self.signals[y-1], x)
+            self.Spectrogram(
+                self.signals[subWindowIndex-1], subWindow.windowTitle())
 
     def openSecondDialog(self, arr, title):
         self.count = self.count+1
@@ -319,9 +336,12 @@ class Ui_MainWindow(QMainWindow):
         self.actionExit.triggered.connect(MainWindow.close)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.actionOpen.triggered.connect(lambda: self.browsefiles())
-        self.actionZoomIn.triggered.connect(lambda: self.zoomIn())
-        self.actionZoomOut.triggered.connect(lambda: self.zoomOut())
-        self.actionPlay.triggered.connect(lambda: self.play())
+        self.actionZoomIn.triggered.connect(
+            lambda: self.zoomIn(self.mdi.activeSubWindow()))
+        self.actionZoomOut.triggered.connect(
+            lambda: self.zoomOut(self.mdi.activeSubWindow()))
+        self.actionPlay.triggered.connect(
+            lambda: self.play(self.mdi.activeSubWindow()))
         self.actionSpectrogram.triggered.connect(
             lambda: self.openSpectro(self.mdi.activeSubWindow()))
 
