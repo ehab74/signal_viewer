@@ -20,12 +20,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 
-openedWinds = 0
-
-
 class MdiWind(QtWidgets.QMdiSubWindow):
     def closeEvent(self, event):
-        openedWinds = openedWinds - 1
+        ui.openedWinds -= 1
+        if (ui.openedWinds == 0):
+            ui.hide()
 
 
 class Ui_MainWindow(QMainWindow):
@@ -33,6 +32,14 @@ class Ui_MainWindow(QMainWindow):
     signals2 = []
     count = 0
     j = 0
+    openedWinds = 0
+
+    def hide(self):
+        self.actionZoomIn.setEnabled(False)
+        self.actionZoomOut.setEnabled(False)
+        self.actionPlay.setEnabled(False)
+        self.actionSpectrogram.setEnabled(False)
+        self.actionSave_as.setEnabled(False)
 
     def titleIndex(self, subWindow):
         subWindowTitle = subWindow.windowTitle()
@@ -59,19 +66,21 @@ class Ui_MainWindow(QMainWindow):
 
     def play(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
+        j = 0
         if flag:
-            while 40+self.j < self.signals2[subWindowIndex-1][1]:
-                self.j += 40
+            while 40+j < self.signals2[subWindowIndex-1][1]:
+                j += 40
                 self.signals2[subWindowIndex -
-                              1][0].setXRange(0+self.j, 400+self.j)
+                              1][0].setXRange(0+j, 400+j)
                 QtWidgets.QApplication.processEvents()
-            self.j = 0
+        #    self.j = 0
 
     def Spectrogram(self, arr, title):
-        mydialog = MdiWind(self)
+        mydialog = QtWidgets.QMdiSubWindow(self)
         mydialog.figure = plt.figure()
         mydialog.canvas = FigureCanvas(mydialog.figure)
         mydialog.figure.clear()
+        print(arr)
         f, t, Sxx = signal.spectrogram(arr, fs=200)
         ax = mydialog.figure.add_subplot()
         ax.pcolormesh(t, f, 10*np.log10(Sxx))
@@ -97,6 +106,7 @@ class Ui_MainWindow(QMainWindow):
 
     def openSecondDialog(self, arr, title):
         self.count = self.count+1
+        self.openedWinds += 1
         mydialog = MdiWind(self)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
@@ -117,6 +127,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomIn.setEnabled(True)
         self.actionZoomOut.setEnabled(True)
         self.actionPlay.setEnabled(True)
+        self.actionSpectrogram.setEnabled(True)
+        self.actionSave_as.setEnabled(True)
 
     def read_edf(self, filename):
         f = pyedflib.EdfReader(filename)
@@ -127,12 +139,10 @@ class Ui_MainWindow(QMainWindow):
             sigbufs[i, :] = f.readSignal(i)
         for i in range(0, n):
             self.signals.append(sigbufs[i])
-        for i in range(0, n):
             self.graphWidget = pg.PlotWidget()
             self.openSecondDialog(sigbufs[i], signal_labels[i])
+            print(sigbufs[i])
         self.mdi.cascadeSubWindows()
-        self.actionSpectrogram.setEnabled(True)
-        self.actionSave_as.setEnabled(True)
 
     def read_txt(self, filename):
         with open(filename) as fp:
@@ -140,9 +150,9 @@ class Ui_MainWindow(QMainWindow):
             for line in fp:
                 arr.append(list(map(float, (line.rstrip().split(' ')))))
             data = np.array(arr)
-            self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(data, filename)
-
+            self.graphWidget = pg.PlotWidget() 
+            self.openSecondDialog(arr, filename)
+            
     def read_mat(self, filename):
         mat = loadmat(filename)
         print(mat)
@@ -167,9 +177,6 @@ class Ui_MainWindow(QMainWindow):
             self.read_mat(file_path)
         elif file_path.endswith('.txt'):
             self.read_txt(file_path)
-
-    def closeEvent(self):
-        print(1)
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
