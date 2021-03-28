@@ -141,7 +141,6 @@ class Ui_MainWindow(QMainWindow):
             self.signals.append(sigbufs[i])
             self.graphWidget = pg.PlotWidget()
             self.openSecondDialog(sigbufs[i], signal_labels[i])
-            print(sigbufs[i])
         self.mdi.cascadeSubWindows()
 
     def read_txt(self, filename):
@@ -150,9 +149,9 @@ class Ui_MainWindow(QMainWindow):
             for line in fp:
                 arr.append(list(map(float, (line.rstrip().split(' ')))))
             data = np.array(arr)
-            self.graphWidget = pg.PlotWidget() 
-            self.openSecondDialog(arr, filename)
-            
+            self.graphWidget = pg.PlotWidget()
+            self.openSecondDialog(data, filename)
+
     def read_mat(self, filename):
         mat = loadmat(filename)
         print(mat)
@@ -167,7 +166,7 @@ class Ui_MainWindow(QMainWindow):
 
     def browsefiles(self):
         fname = QFileDialog.getOpenFileName(
-            self, 'Open file', '../', "*.csv;;" " *.txt;;" " *.edf;;" " *.mat;;")
+            self, 'Open file', '../',  " *.edf;;" "*.csv;;" " *.txt;;" " *.mat;;")
         file_path = fname[0]
         if file_path.endswith('.edf'):
             self.read_edf(file_path)
