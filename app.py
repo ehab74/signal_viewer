@@ -73,18 +73,15 @@ class Ui_MainWindow(QMainWindow):
                 self.signals2[subWindowIndex -
                               1][0].setXRange(0+j, 400+j)
                 QtWidgets.QApplication.processEvents()
-        #    self.j = 0
 
     def Spectrogram(self, arr, title):
         mydialog = QtWidgets.QMdiSubWindow(self)
         mydialog.figure = plt.figure()
         mydialog.canvas = FigureCanvas(mydialog.figure)
         mydialog.figure.clear()
-        print(arr)
         f, t, Sxx = signal.spectrogram(arr, fs=200)
         ax = mydialog.figure.add_subplot()
         ax.pcolormesh(t, f, 10*np.log10(Sxx))
-        # ax.colorbar()
         mydialog.canvas.draw()
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
@@ -121,7 +118,6 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget.setXRange(0, 400, padding=0)
 
         self.signals2.append((mydialog.graphWidget, len(arr)))
-        # mydialog.graphWidget.enableAutoRange(enable=True)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
         self.actionZoomIn.setEnabled(True)
@@ -154,7 +150,6 @@ class Ui_MainWindow(QMainWindow):
 
     def read_mat(self, filename):
         mat = loadmat(filename)
-        print(mat)
         mat_file = pd.DataFrame(mat["F"]).iloc[:, 1]
         self.graphWidget = pg.PlotWidget()
         self.openSecondDialog(mat_file, filename)
@@ -405,7 +400,6 @@ class Ui_MainWindow(QMainWindow):
             "MainWindow", "Start playing signal from the beginning each time its end has been reached"))
         self.actionPlay_as_fast_as_possible.setText(
             _translate("MainWindow", "Play as fast as possible"))
-# import app_rc
 
 
 if __name__ == "__main__":
