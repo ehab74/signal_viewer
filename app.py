@@ -16,35 +16,55 @@ from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
 from random import randint
 from scipy import signal
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
+
+openedWinds = 0
+class MdiWind(QtWidgets.QMdiSubWindow):
+    def closeEvent(self,event):
+        openedWinds = openedWinds - 1
 
 class Ui_MainWindow(QMainWindow):
-    def Spectrogram(self, arr, no, title):
-        mydialog = QtWidgets.QMdiSubWindow(self)
+    signals = []
+    count=0
+
+    def Spectrogram(self, arr, title):
+        mydialog = MdiWind(self)
         mydialog.figure = plt.figure()
         mydialog.canvas = FigureCanvas(mydialog.figure)
         mydialog.figure.clear()
         f, t, Sxx = signal.spectrogram(arr, fs=200)
         ax = mydialog.figure.add_subplot()
-        sp = ax.pcolormesh(t, f, 10*np.log10(Sxx))
-        # ax.colorbar()
+        ax.pcolormesh(t, f, 10*np.log10(Sxx))
         mydialog.canvas.draw()
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle(str(no+1)+'#' + title)
+        mydialog.setWindowTitle(str(self.count)+"#Time-FFT: "+ title)
         mydialog.setWidget(mydialog.canvas)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
-    def openSecondDialog(self, arr, no, title):
-        mydialog = QtWidgets.QMdiSubWindow(self)
+    def openSpectro(self,subWindow):
+        self.signals.append(0)
+        x = subWindow.windowTitle()
+        if x.find("Time-FFT")==-1:
+            if(x[1]!='#'):
+                y = int(x[0])*10 + int(x[1])
+            else:
+                y = int(x[0])
+            self.count=self.count+1
+            self.Spectrogram(self.signals[y-1],x)   
+    
+    def openSecondDialog(self, arr, title):
+        self.count=self.count+1
+        mydialog = MdiWind(self)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle(str(no+1)+'#' + title)
+        mydialog.setWindowTitle(str(self.count)+'#' + title)
         mydialog.graphWidget = pg.PlotWidget()
         mydialog.setWidget(mydialog.graphWidget)
         mydialog.graphWidget.setBackground('w')
@@ -63,22 +83,22 @@ class Ui_MainWindow(QMainWindow):
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             sigbufs[i, :] = f.readSignal(i)
-        f, t, Sxx = signal.spectrogram(sigbufs[4], fs=200)
-        plt.pcolormesh(t, f, 10*np.log10(Sxx))
-        plt.ylabel('Frequency [Hz]')
-        plt.xlabel('Time [sec]')
-        plt.colorbar()
-        plt.show()
+        for i in range(0,n):
+            self.signals.append(sigbufs[i])
         for i in range(0, n):
             self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(sigbufs[i], i,     signal_labels[i])
-
-        self.mdi.tileSubWindows()
-
+            self.openSecondDialog(sigbufs[i], signal_labels[i])
+        self.mdi.cascadeSubWindows()
+        self.actionSpectrogram.setEnabled(True)
+        self.actionSave_as.setEnabled(True)
+    
     def browsefiles(self):
         fname = QFileDialog.getOpenFileName(self, 'Open file', '../')
         self.read_file(fname[0])
 
+    def closeEvent(self):
+        print(1)
+    
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         font = QtGui.QFont()
@@ -143,7 +163,6 @@ class Ui_MainWindow(QMainWindow):
         self.actionOpen.setIcon(icon1)
         self.actionOpen.setObjectName("actionOpen")
         self.actionPlay = QtWidgets.QAction(MainWindow)
-        self.actionPlay.setCheckable(True)
         self.actionPlay.setEnabled(False)
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap("play.png"),
@@ -186,19 +205,19 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.setIcon(icon7)
         self.actionZoomOut.setObjectName("actionZoomOut")
         self.actionSpectrogram = QtWidgets.QAction(MainWindow)
-        self.actionSpectrogram.setEnabled(False)
         icon8 = QtGui.QIcon()
         icon8.addPixmap(QtGui.QPixmap("spectr.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionSpectrogram.setIcon(icon8)
         self.actionSpectrogram.setObjectName("actionSpectrogram")
+        self.actionSpectrogram.setEnabled(False)
         self.actionSave_as = QtWidgets.QAction(MainWindow)
-        self.actionSave_as.setEnabled(False)
         icon9 = QtGui.QIcon()
         icon9.addPixmap(QtGui.QPixmap("save.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionSave_as.setIcon(icon9)
         self.actionSave_as.setObjectName("actionSave_as")
+        self.actionSave_as.setEnabled(False)
         self.actionExit = QtWidgets.QAction(MainWindow)
         self.actionExit.setObjectName("actionExit")
         self.actionPlay_as_fast_as_possible_2 = QtWidgets.QAction(MainWindow)
@@ -245,6 +264,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionExit.triggered.connect(MainWindow.close)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.actionOpen.triggered.connect(lambda: self.browsefiles())
+        self.actionSpectrogram.triggered.connect(lambda: self.openSpectro(self.mdi.activeSubWindow()))
+        
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
