@@ -52,7 +52,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionNext.setEnabled(False)
         self.actionBack.setEnabled(False)
         self.actionPause.setEnabled(False)
-    
+
     def showIcons(self):
         self.actionZoomIn.setEnabled(True)
         self.actionZoomOut.setEnabled(True)
@@ -77,16 +77,12 @@ class Ui_MainWindow(QMainWindow):
     def scrollRight(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
-            subWindow.graphWidget.plotItem.getViewBox().translateBy(
-                x=100, y=0
-            )
+            subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
 
     def scrollLeft(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
-            subWindow.graphWidget.plotItem.getViewBox().translateBy(
-                x=-100, y=0
-            )
+            subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
 
     def zoomIn(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
@@ -110,7 +106,7 @@ class Ui_MainWindow(QMainWindow):
                     self.signalGraph[subWindowIndex - 1] += cursor
                     break
                 cursor += 40
-                self.playClicked(subWindow,subWindowIndex, cursor)
+                self.playClicked(subWindow, subWindowIndex, cursor)
 
     def playClicked(self, subWindow, subWindowIndex, cursor):
         subWindow.graphWidget.setXRange(
