@@ -11,15 +11,12 @@ import pandas as pd
 import pyedflib
 import numpy as np
 import pyqtgraph as pg
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, QtPrintSupport
 from PyQt5.QtWidgets import (
     QDialog,
     QFileDialog,
     QMainWindow,
-    QWidget,
-    QScrollBar,
-    QVBoxLayout,
-    QScrollArea,
+    QWidget
 )
 from random import randint
 from scipy import signal
@@ -42,7 +39,35 @@ class Ui_MainWindow(QMainWindow):
     j = 0
     openedWinds = 0
     stop = False
+    def print_widget(self,widget_list, filename):
+        printer = QtPrintSupport.QPrinter(QtPrintSupport.QPrinter.HighResolution)
+        printer.setOutputFormat(QtPrintSupport.QPrinter.PdfFormat)
+        printer.setOutputFileName(filename)
+        painter = QtGui.QPainter(printer)
+        for widget in widget_list:
+            # start scale
+            xscale = printer.pageRect().width() * 1.0 / widget.width()
+            yscale = printer.pageRect().height() * 1.0 / widget.height()
+            scale = min(xscale, yscale)
+            painter.translate(printer.paperRect().x() + printer.pageRect().width()/2 , printer.paperRect().y() + printer.pageRect().height()/2)
+            painter.scale(scale, scale)
+            painter.translate(-widget.width() / 2, -widget.height() / 2)
+            # end scale
+            widget.graphWidget.setXRange(0, 300000)
+            widget.render(painter)
+            painter.resetTransform()
+            printer.newPage()
+        painter.end()
 
+    def printPDF(self, widget_list):
+        fn, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export PDF", None, "PDF files (.pdf);;All Files()"
+        )
+        if fn:
+            if QtCore.QFileInfo(fn).suffix() == "":
+                fn += ".pdf"
+                self.print_widget(widget_list, fn)
+    
     def hideIcons(self):
         self.actionZoomIn.setEnabled(False)
         self.actionZoomOut.setEnabled(False)
@@ -179,8 +204,8 @@ class Ui_MainWindow(QMainWindow):
         with open(filename) as fp:
             arr = []
             for line in fp:
-                arr.append(list(map(float, (line.rstrip().split(" ")))))
-            data = np.array(arr)
+                arr.append((line.rstrip().split(" ")[1]))
+            data = np.array(arr).astype(np.float)
             self.signals.append(data)
             self.signalGraph.append(0)
             self.graphWidget = pg.PlotWidget()
@@ -401,7 +426,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionBack.triggered.connect(
             lambda: self.openSpectro(self.scrollLeft(self.mdi.activeSubWindow()))
         )
-
+        self.actionSave_as.triggered.connect(lambda: self.printPDF(self.mdi.subWindowList()))
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "SIGVIEW"))
