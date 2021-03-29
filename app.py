@@ -32,19 +32,18 @@ class MdiWind(QtWidgets.QMdiSubWindow):
     def closeEvent(self, event):
         ui.openedWinds -= 1
         if ui.openedWinds == 0:
-            ui.hide()
+            ui.hideIcons()
 
 
 class Ui_MainWindow(QMainWindow):
     signals = []
-    signals2 = []
     signalGraph = []
     count = 0
     j = 0
     openedWinds = 0
     stop = False
 
-    def hide(self):
+    def hideIcons(self):
         self.actionZoomIn.setEnabled(False)
         self.actionZoomOut.setEnabled(False)
         self.actionPlay.setEnabled(False)
@@ -53,6 +52,16 @@ class Ui_MainWindow(QMainWindow):
         self.actionNext.setEnabled(False)
         self.actionBack.setEnabled(False)
         self.actionPause.setEnabled(False)
+    
+    def showIcons(self):
+        self.actionZoomIn.setEnabled(True)
+        self.actionZoomOut.setEnabled(True)
+        self.actionPlay.setEnabled(True)
+        self.actionPause.setEnabled(True)
+        self.actionSpectrogram.setEnabled(True)
+        self.actionSave_as.setEnabled(True)
+        self.actionNext.setEnabled(True)
+        self.actionBack.setEnabled(True)
 
     def titleIndex(self, subWindow):
         subWindowTitle = subWindow.windowTitle()
@@ -68,26 +77,26 @@ class Ui_MainWindow(QMainWindow):
     def scrollRight(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
-            self.signals2[subWindowIndex - 1].plotItem.getViewBox().translateBy(
+            subWindow.graphWidget.plotItem.getViewBox().translateBy(
                 x=100, y=0
             )
 
     def scrollLeft(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
-            self.signals2[subWindowIndex - 1].plotItem.getViewBox().translateBy(
+            subWindow.graphWidget.plotItem.getViewBox().translateBy(
                 x=-100, y=0
             )
 
     def zoomIn(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
-            self.signals2[subWindowIndex - 1].plotItem.getViewBox().scaleBy(x=0.5, y=1)
+            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
 
     def zoomOut(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
-            self.signals2[subWindowIndex - 1].plotItem.getViewBox().scaleBy(x=2, y=1)
+            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
 
     def play(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow)
@@ -101,10 +110,10 @@ class Ui_MainWindow(QMainWindow):
                     self.signalGraph[subWindowIndex - 1] += cursor
                     break
                 cursor += 40
-                self.playClicked(subWindowIndex, cursor)
+                self.playClicked(subWindow,subWindowIndex, cursor)
 
-    def playClicked(self, subWindowIndex, cursor):
-        self.signals2[subWindowIndex - 1].setXRange(
+    def playClicked(self, subWindow, subWindowIndex, cursor):
+        subWindow.graphWidget.setXRange(
             self.signalGraph[subWindowIndex - 1] + cursor,
             400 + cursor + self.signalGraph[subWindowIndex - 1],
         )
@@ -131,11 +140,11 @@ class Ui_MainWindow(QMainWindow):
         mydialog.show()
 
     def openSpectro(self, subWindow):
-        self.signals.append(0)
-        self.signals2.append((0, 0))
         subWindowIndex, flag = self.titleIndex(subWindow)
         if flag:
             self.count = self.count + 1
+            self.signalGraph.append(0)
+            self.signals.append(0)
             self.Spectrogram(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     def openSecondDialog(self, arr, title):
@@ -152,17 +161,9 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget.plot(arr, pen="b")
         mydialog.graphWidget.showGrid(x=True, y=True)
         mydialog.graphWidget.setXRange(0, 400, padding=0)
-        self.signals2.append(mydialog.graphWidget)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
-        self.actionZoomIn.setEnabled(True)
-        self.actionZoomOut.setEnabled(True)
-        self.actionPlay.setEnabled(True)
-        self.actionPause.setEnabled(True)
-        self.actionSpectrogram.setEnabled(True)
-        self.actionSave_as.setEnabled(True)
-        self.actionNext.setEnabled(True)
-        self.actionBack.setEnabled(True)
+        self.showIcons()
 
     def read_edf(self, filename):
         f = pyedflib.EdfReader(filename)
@@ -185,19 +186,25 @@ class Ui_MainWindow(QMainWindow):
                 arr.append(list(map(float, (line.rstrip().split(" ")))))
             data = np.array(arr)
             self.signals.append(data)
+            self.signalGraph.append(0)
             self.graphWidget = pg.PlotWidget()
             self.openSecondDialog(data, filename)
 
-    def read_mat(self, filename):
-        mat = loadmat(filename)
-        mat_file = pd.DataFrame(mat["F"]).iloc[:, 1]
-        self.graphWidget = pg.PlotWidget()
-        self.openSecondDialog(mat_file, filename)
+    # def read_mat(self, filename):
+    #     mat = loadmat(filename)
+    #     mat_file = pd.DataFrame(mat["F"]).iloc[:, 1]
+    #     self.signals.append(mat_file)
+    #     self.signalGraph.append(0)
+    #     self.graphWidget = pg.PlotWidget()
+    #     self.openSecondDialog(mat_file, filename)
 
     def read_csv(self, filename):
         data = pd.read_csv(filename).iloc[:, 1]
+        array = data.to_numpy()
+        self.signals.append(array)
+        self.signalGraph.append(0)
         self.graphWidget = pg.PlotWidget()
-        self.openSecondDialog(data, filename)
+        self.openSecondDialog(array, filename)
 
     def browsefiles(self):
         fname = QFileDialog.getOpenFileName(
@@ -416,10 +423,10 @@ class Ui_MainWindow(QMainWindow):
         self.actionPause.setText(_translate("MainWindow", "Stop playing"))
         self.actionPause.setStatusTip(_translate("MainWindow", "Stops acqusition"))
         self.actionPause.setShortcut(_translate("MainWindow", "F7"))
-        self.actionBack.setText(_translate("MainWindow", "<< Signal beginning"))
-        self.actionBack.setShortcut(_translate("MainWindow", "Home"))
-        self.actionNext.setText(_translate("MainWindow", "Signal end >>"))
-        self.actionNext.setShortcut(_translate("MainWindow", "End"))
+        self.actionBack.setText(_translate("MainWindow", "Backward"))
+        self.actionBack.setShortcut(_translate("MainWindow", "Ctrl+Left"))
+        self.actionNext.setText(_translate("MainWindow", "Forward"))
+        self.actionNext.setShortcut(_translate("MainWindow", "Ctrl+Right"))
         self.actionZoomIn.setText(_translate("MainWindow", "Zoom In"))
         self.actionZoomIn.setStatusTip(_translate("MainWindow", "Zoom selected part"))
         self.actionZoomIn.setShortcut(_translate("MainWindow", "Ctrl+Up"))
