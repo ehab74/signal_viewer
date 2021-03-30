@@ -12,6 +12,7 @@ import pyedflib
 import os
 import numpy as np
 import pyqtgraph as pg
+import pyqtgraph.exporters
 from PyQt5 import QtCore, QtGui, QtWidgets, QtPrintSupport
 from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
 from random import randint
@@ -212,6 +213,20 @@ class Ui_MainWindow(QMainWindow):
             self.Spectrogram(
                 self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
+    def graphWidg(self,arr):
+        graphWidget = pg.PlotWidget()
+        graphWidget.setBackground("w")
+        graphWidget.plot(arr, pen="b")
+        graphWidget.showGrid(x=True, y=True)
+        graphWidget.setXRange(0, 400, padding=0)
+        exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
+# set export parameters if needed
+        exporter.params['width'] = 500
+        exporter.params['height'] = 500   # (note this also affects height parameter)
+# save to file
+        exporter.export('fileName.png')
+        return(graphWidget)
+
     def openSecondDialog(self, arr, title):
         self.count = self.count + 1
         self.openedWinds += 1
@@ -221,12 +236,8 @@ class Ui_MainWindow(QMainWindow):
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.count) + "#" + title)
-        mydialog.graphWidget = pg.PlotWidget()
+        mydialog.graphWidget = self.graphWidg(arr)
         mydialog.setWidget(mydialog.graphWidget)
-        mydialog.graphWidget.setBackground("w")
-        mydialog.graphWidget.plot(arr, pen="b")
-        mydialog.graphWidget.showGrid(x=True, y=True)
-        mydialog.graphWidget.setXRange(0, 400, padding=0)
         x = mydialog.graphWidget.viewRange()
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
