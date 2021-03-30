@@ -17,6 +17,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets, QtPrintSupport
 from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
 from random import randint
 from scipy import signal
+from PIL import Image
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -59,28 +60,47 @@ class Ui_MainWindow(QMainWindow):
     zoomCnt = 0
 
     def print_widget(self, widget_list, filename):
-        printer = QtPrintSupport.QPrinter(
-            QtPrintSupport.QPrinter.HighResolution)
-        printer.setOutputFormat(QtPrintSupport.QPrinter.PdfFormat)
-        printer.setOutputFileName(filename)
-        painter = QtGui.QPainter(printer)
+        imagelist = []
         for widget in widget_list:
             # start scale
-            xscale = printer.pageRect().width() * 1.0 / widget.width()
-            yscale = printer.pageRect().height() * 1.0 / widget.height()
-            scale = min(xscale, yscale)
-            painter.translate(
-                printer.paperRect().x() + printer.pageRect().width() / 2,
-                printer.paperRect().y() + printer.pageRect().height() / 2,
-            )
-            painter.scale(scale, scale)
-            painter.translate(-widget.width() / 2, -widget.height() / 2)
-            # end scale
-            # widget.graphWidget.setXRange(0, 300000)
-            widget.render(painter)
-            painter.resetTransform()
-            printer.newPage()
-        painter.end()
+            indx,flag=self.titleIndex(widget)
+            if flag:
+                graphWidget = self.graphWidg(self.signals[indx-1])
+                # graphWidget.setXRange(0, len(signal[indx-1]), padding=0)
+                exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
+                exporter.params['width'] = 500
+                exporter.params['height'] = 500
+                exporter.export(f'fileName{str(indx)}.png')
+            else:
+                fig,_ = self.spectroDraw(self.signals[indx-1])
+                fig.savefig(f'fileName{str(indx)}.png')
+            img = Image.open(f'fileName{str(indx)}.png')
+            imgConverted = img.convert('RGB')
+            imagelist.append(imgConverted)
+            os.remove(f'fileName{str(indx)}.png')
+        imagelist[0].save(filename,save_all=True, append_images=imagelist[1:])
+        # printer = QtPrintSupport.QPrinter(
+        #     QtPrintSupport.QPrinter.HighResolution)
+        # printer.setOutputFormat(QtPrintSupport.QPrinter.PdfFormat)
+        # printer.setOutputFileName(filename)
+        # painter = QtGui.QPainter(printer)
+        # 
+        # for widget in widget_list:
+        #     xscale = printer.pageRect().width() * 1.0 / widget.width()
+        #     yscale = printer.pageRect().height() * 1.0 / widget.height()
+        #     scale = min(xscale, yscale)
+        #     painter.translate(
+        #         printer.paperRect().x() + printer.pageRect().width() / 2,
+        #         printer.paperRect().y() + printer.pageRect().height() / 2,
+        #     )
+        #     painter.scale(scale, scale)
+        #     painter.translate(-widget.width() / 2, -widget.height() / 2)
+        #     # end scale
+        #     # widget.graphWidget.setXRange(0, 300000)
+        #     widget.render(painter)
+        #     painter.resetTransform()
+        #     printer.newPage()
+        # painter.end()
 
     def printPDF(self, widget_list):
         fn, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -113,14 +133,19 @@ class Ui_MainWindow(QMainWindow):
 
     def titleIndex(self, subWindow):
         subWindowTitle = subWindow.windowTitle()
-        if subWindowTitle[1] != "#":
-            subWindowIndex = int(
-                subWindowTitle[0]) * 10 + int(subWindowTitle[1])
-        else:
-            subWindowIndex = int(subWindowTitle[0])
         if subWindowTitle.find("Time-FFT") == -1:
+            if subWindowTitle[1] != "#":
+                subWindowIndex = int(
+                    subWindowTitle[0]) * 10 + int(subWindowTitle[1])
+            else:
+                subWindowIndex = int(subWindowTitle[0])
             return (subWindowIndex, True)
         else:
+            if subWindowTitle[1] != "#":
+                subWindowIndex = int(
+                    subWindowTitle[12]) * 10 + int(subWindowTitle[13])
+            else:
+                subWindowIndex = int(subWindowTitle[12])
             return (subWindowIndex, False)
 
     def scrollRight(self, subWindow):
@@ -185,15 +210,19 @@ class Ui_MainWindow(QMainWindow):
     def stopClicked(self):
         self.stop = True
 
+    def spectroDraw(self,arr):
+        figure = plt.figure()
+        canvas = FigureCanvas(figure)
+        figure.clear()
+        f, t, Sxx = signal.spectrogram(arr, fs=200)
+        ax = figure.add_subplot()
+        ax.pcolormesh(t, f, 10 * np.log10(Sxx))
+        canvas.draw()
+        return(figure,canvas)
+
     def Spectrogram(self, arr, title):
         mydialog = QtWidgets.QMdiSubWindow(self)
-        mydialog.figure = plt.figure()
-        mydialog.canvas = FigureCanvas(mydialog.figure)
-        mydialog.figure.clear()
-        f, t, Sxx = signal.spectrogram(arr, fs=200)
-        ax = mydialog.figure.add_subplot()
-        ax.pcolormesh(t, f, 10 * np.log10(Sxx))
-        mydialog.canvas.draw()
+        mydialog.figure, mydialog.canvas = self.spectroDraw(arr)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -218,13 +247,6 @@ class Ui_MainWindow(QMainWindow):
         graphWidget.setBackground("w")
         graphWidget.plot(arr, pen="b")
         graphWidget.showGrid(x=True, y=True)
-        graphWidget.setXRange(0, 400, padding=0)
-        exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
-# set export parameters if needed
-        exporter.params['width'] = 500
-        exporter.params['height'] = 500   # (note this also affects height parameter)
-# save to file
-        exporter.export('fileName.png')
         return(graphWidget)
 
     def openSecondDialog(self, arr, title):
@@ -237,6 +259,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.count) + "#" + title)
         mydialog.graphWidget = self.graphWidg(arr)
+        mydialog.graphWidget.setXRange(0,400,padding=0)
         mydialog.setWidget(mydialog.graphWidget)
         x = mydialog.graphWidget.viewRange()
         self.mdi.addSubWindow(mydialog)
