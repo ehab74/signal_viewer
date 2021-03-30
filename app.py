@@ -9,6 +9,7 @@
 
 import pandas as pd
 import pyedflib
+import os
 import numpy as np
 import pyqtgraph as pg
 from PyQt5 import QtCore, QtGui, QtWidgets, QtPrintSupport
@@ -24,7 +25,7 @@ class MdiWind(QtWidgets.QMdiSubWindow):
     def closeEvent(self, event):
         ui.openedWinds -= 1
         if ui.openedWinds == 0:
-            ui.hideIcons()
+            ui.hideIcons()  
 
 
 class MainWind(QtWidgets.QMainWindow):
@@ -225,6 +226,7 @@ class Ui_MainWindow(QMainWindow):
 
     def read_txt(self, filename):
         with open(filename) as fp:
+            signal_label = os.path.basename(filename)
             arr = []
             for line in fp:
                 arr.append((line.rstrip().split(" ")[1]))
@@ -232,23 +234,25 @@ class Ui_MainWindow(QMainWindow):
             self.signals.append(data)
             self.signalGraph.append(0)
             self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(data, filename)
+            self.openSecondDialog(data, signal_label[0:-4])
 
     # def read_mat(self, filename):
     #     mat = loadmat(filename)
+    #     signal_label = os.path.basename(filename)
     #     mat_file = pd.DataFrame(mat["F"]).iloc[:, 1]
     #     self.signals.append(mat_file)
     #     self.signalGraph.append(0)
     #     self.graphWidget = pg.PlotWidget()
-    #     self.openSecondDialog(mat_file, filename)
+    #     self.openSecondDialog(mat_file, signal_label[0:-4])
 
     def read_csv(self, filename):
         data = pd.read_csv(filename).iloc[:, 1]
+        signal_label = os.path.basename(filename)
         array = data.to_numpy()
         self.signals.append(array)
         self.signalGraph.append(0)
         self.graphWidget = pg.PlotWidget()
-        self.openSecondDialog(array, filename)
+        self.openSecondDialog(array, signal_label[0:-4])
 
     def browsefiles(self):
         self.closeWindow = True
