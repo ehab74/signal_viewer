@@ -26,7 +26,7 @@ class MdiWind(QtWidgets.QMdiSubWindow):
     def closeEvent(self, event):
         ui.openedWinds -= 1
         if ui.openedWinds == 0:
-            ui.hideIcons()  
+            ui.hideIcons()
 
 
 class MainWind(QtWidgets.QMainWindow):
@@ -213,8 +213,9 @@ class Ui_MainWindow(QMainWindow):
             self.Spectrogram(
                 self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
-    def graphWidg(self,arr):
+    def graphWidg(self, arr):
         graphWidget = pg.PlotWidget()
+        self.subwindow = graphWidget
         graphWidget.setBackground("w")
         graphWidget.plot(arr, pen="b")
         graphWidget.showGrid(x=True, y=True)
@@ -222,7 +223,8 @@ class Ui_MainWindow(QMainWindow):
         exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
 # set export parameters if needed
         exporter.params['width'] = 500
-        exporter.params['height'] = 500   # (note this also affects height parameter)
+        # (note this also affects height parameter)
+        exporter.params['height'] = 500
 # save to file
         exporter.export('fileName.png')
         return(graphWidget)
@@ -238,7 +240,6 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWindowTitle(str(self.count) + "#" + title)
         mydialog.graphWidget = self.graphWidg(arr)
         mydialog.setWidget(mydialog.graphWidget)
-        x = mydialog.graphWidget.viewRange()
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
         self.showIcons()
