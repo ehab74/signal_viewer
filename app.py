@@ -65,18 +65,22 @@ class Ui_MainWindow(QMainWindow):
         titlesList = [] #stores the titles of open widgets
         yCord = 0 #Y-coordinate on the PDF page
         itr=0
-        #To iterate on all the opened widgets  to get their title
+        #To iterate on all the opened widgets to get their title
         for widget in widget_list:
             if itr not in self.deletedWinds:
                 if widget.windowTitle().find('Time-FFT')==-1:
                     titlesList.append(widget.windowTitle())
                 else:
                 #We put an indicator on the spectrogram widgets to mark them
-                    strX = widget.windowTitle()[12:]
+                    if widget.windowTitle()[1] !='#':
+                        strX = widget.windowTitle()[13:]
+                    else:
+                        strX = widget.windowTitle()[12:]
                     strX = strX+'x'
                     titlesList.append(strX)
             itr+=1
         titlesList.sort()
+        print(titlesList)
         for title in titlesList:
             indx,_=self.titleIndex(title)
             if title[-1]!='x':
@@ -93,7 +97,7 @@ class Ui_MainWindow(QMainWindow):
                 pdf.cell(0,10, txt=titleNew,ln=1,align='C')
                 #We change the index of the Y-Coordinate to insert the next image
                 yCord = pdf.get_y()
-                pdf.image(f'.fileName{str(indx)}.png', x = None, y = None, w = 95, h = 60, type = 'PNG', link = '')
+                pdf.image(f'.fileName{str(indx)}.png', x = None, y = None, w = 95, h = 57, type = 'PNG', link = '')
                 os.remove(f'.fileName{str(indx)}.png')
             else:
                 fig,_ = self.spectroDraw(self.signals[indx-1])
@@ -134,8 +138,6 @@ class Ui_MainWindow(QMainWindow):
 
     def titleIndex(self, subWindowTitle):
     #Extracts the index of the subwindow from the window title and checks if the window is a spectrogram or a normal graph
-        if subWindowTitle[0]==' ':
-            subWindowTitle = subWindowTitle[1:]
         if subWindowTitle.find("Time-FFT") == -1:
             if subWindowTitle[1] != "#":
                 subWindowIndex = int(
