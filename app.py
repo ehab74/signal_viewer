@@ -14,21 +14,24 @@ import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.exporters
 from fpdf import FPDF
-from PyQt5 import QtCore, QtGui, QtWidgets, QtPrintSupport
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
-from random import randint
 from scipy import signal
-from PIL import Image
-from scipy.io import loadmat
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 
 class MdiWind(QtWidgets.QMdiSubWindow):
     def closeEvent(self, event):
-        ui.openedWinds -= 1
-        if ui.openedWinds == 0:
-            ui.hideIcons()  
+        if 'Time-FFT' not in self.windowTitle():
+            ui.openedWinds -= 1
+            if ui.openedWinds == 0:
+                ui.hideIcons()
+        itr=0
+        for widget in ui.mdi.subWindowList():
+            if widget.windowTitle()==self.windowTitle():
+                ui.deletedWinds.append(itr)
+            itr+=1
 
 
 class MainWind(QtWidgets.QMainWindow):
@@ -53,6 +56,7 @@ class Ui_MainWindow(QMainWindow):
     signals = []
     signalGraph = []
     zoomRange = []
+    deletedWinds = []
     windowsCount = 0
     openedWinds = 0
     zoomCnt = 0
@@ -60,39 +64,45 @@ class Ui_MainWindow(QMainWindow):
     closeWindow = False
 
     def print_widget(self, widget_list, filename):
-        imagelist = []
         pdf = FPDF()
         pdf.add_page()
         pdf.set_xy(0,0)
         pdf.set_font('Arial', 'B', 10)
         titlesList = []
         yCord = 0
+        itr=0
         for widget in widget_list:
-            if widget.windowTitle().find('Time-FFT')==-1:
-                titlesList.append(widget.windowTitle())
-            else:
-                strX = widget.windowTitle()[12:]
-                strX = strX+'x'
-                titlesList.append(strX)
+            if itr not in self.deletedWinds:
+                if widget.windowTitle().find('Time-FFT')==-1:
+                    titlesList.append(widget.windowTitle())
+                else:
+                    strX = widget.windowTitle()[12:]
+                    strX = strX+'x'
+                    titlesList.append(strX)
+            itr+=1
         titlesList.sort()
         for title in titlesList:
-            indx,flag=self.titleIndex(title)
+            indx,_=self.titleIndex(title)
             if title[-1]!='x':
-                graphWidget = self.graphWidg(self.signals[indx-1])
+                graphWidget = self.graphDraw(self.signals[indx-1])
                 exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
                 exporter.parameters()['width']=250
                 exporter.parameters()['height']=250
                 exporter.export(f'.fileName{str(indx)}.png')
-                pdf.cell(0,10, txt=title,ln=1,align='C')
+                if title[1]=='#':
+                    titleNew=title[2:]
+                else:
+                    titleNew=title[3:]
+                pdf.cell(0,10, txt=titleNew,ln=1,align='C')
                 yCord = pdf.get_y()
                 pdf.image(f'.fileName{str(indx)}.png', x = None, y = None, w = 95, h = 60, type = 'PNG', link = '')
                 os.remove(f'.fileName{str(indx)}.png')
             else:
                 fig,_ = self.spectroDraw(self.signals[indx-1])
-                fig.savefig(f'.fileName{str(indx+20)}.png')
-                pdf.image(f'.fileName{str(indx+20)}.png', x = 110, y = yCord, w = 95, h = 60, type = 'PNG', link = '')
-                os.remove(f'.fileName{str(indx+20)}.png')
-        pdf.output(os.path.basename(filename))
+                fig.savefig(f'.fileName{str(indx+99)}.png')
+                pdf.image(f'.fileName{str(indx+99)}.png', x = 110, y = yCord, w = 95, h = 60, type = 'PNG', link = '')
+                os.remove(f'.fileName{str(indx+99)}.png')
+        pdf.output(filename)
 
     def printPDF(self, widget_list):
         fn, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -124,6 +134,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionBack.setEnabled(True)
 
     def titleIndex(self, subWindowTitle):
+        if subWindowTitle[0]==' ':
+            subWindowTitle = subWindowTitle[1:]
         if subWindowTitle.find("Time-FFT") == -1:
             if subWindowTitle[1] != "#":
                 subWindowIndex = int(
@@ -177,23 +189,23 @@ class Ui_MainWindow(QMainWindow):
         subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
         )[0][1] - subWindow.graphWidget.viewRange()[0][0]
-        cursor = 0
+        step = 0
         if flag:
-            while cursor + 40 + self.signalGraph[subWindowIndex - 1] < len(
+            while step + 40 + self.signalGraph[subWindowIndex - 1] < len(
                 self.signals[subWindowIndex - 1]
             ):
                 if self.stop:
                     self.stop = False
-                    self.signalGraph[subWindowIndex - 1] += cursor
+                    self.signalGraph[subWindowIndex - 1] += step
                     break
-                cursor += 40
+                step += 40
                 self.playClicked(subWindow, subWindowIndex,
-                                 cursor)
+                                 step)
 
-    def playClicked(self, subWindow, subWindowIndex, cursor):
+    def playClicked(self, subWindow, subWindowIndex, step):
         subWindow.graphWidget.setXRange(
-            self.signalGraph[subWindowIndex - 1] + cursor,
-            self.zoomRange[subWindowIndex-1] + cursor +
+            self.signalGraph[subWindowIndex - 1] + step,
+            self.zoomRange[subWindowIndex-1] + step +
             self.signalGraph[subWindowIndex - 1],
         )
         QtWidgets.QApplication.processEvents()
@@ -201,21 +213,21 @@ class Ui_MainWindow(QMainWindow):
     def stopClicked(self):
         self.stop = True
 
-    def spectroDraw(self,arr):
+    def spectroDraw(self,signal):
         figure = plt.figure()
         canvas = FigureCanvas(figure)
         figure.clear()
-        f, t, Sxx = signal.spectrogram(arr, fs=200)
+        f, t, Sxx = signal.spectrogram(signal, fs=200)
         ax = figure.add_subplot()
         ax.pcolormesh(t, f, 10 * np.log10(Sxx))
         canvas.draw()
         return(figure,canvas)
 
-    def Spectrogram(self, arr, title):
-        mydialog = QtWidgets.QMdiSubWindow(self)
-        mydialog.figure, mydialog.canvas = self.spectroDraw(arr)
+    def Spectrogram(self, signal, title):
+        mydialog = MdiWind(self)
+        mydialog.figure, mydialog.canvas = self.spectroDraw(signal)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("sig.png"),
+        icon.addPixmap(QtGui.QPixmap("icons/sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
@@ -223,7 +235,7 @@ class Ui_MainWindow(QMainWindow):
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
-    def openSpectro(self, subWindow):
+    def checkSpectro(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         if flag:
             self.windowsCount = self.windowsCount + 1
@@ -233,23 +245,23 @@ class Ui_MainWindow(QMainWindow):
             self.Spectrogram(
                 self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
-    def graphWidg(self,arr):
+    def graphDraw(self,signal):
         graphWidget = pg.PlotWidget()
         graphWidget.setBackground("w")
-        graphWidget.plot(arr, pen="b")
+        graphWidget.plot(signal, pen="b")
         graphWidget.showGrid(x=True, y=True)
         return(graphWidget)
 
-    def openSecondDialog(self, arr, title):
+    def Graph(self, signal, title):
         self.windowsCount = self.windowsCount + 1
         self.openedWinds += 1
         mydialog = MdiWind(self)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("sig.png"),
+        icon.addPixmap(QtGui.QPixmap("icons/sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.windowsCount) + "#" + title)
-        mydialog.graphWidget = self.graphWidg(arr)
+        mydialog.graphWidget = self.graphDraw(signal)
         mydialog.graphWidget.setXRange(0,400,padding=0)
         mydialog.setWidget(mydialog.graphWidget)
         self.mdi.addSubWindow(mydialog)
@@ -268,30 +280,21 @@ class Ui_MainWindow(QMainWindow):
             self.signalGraph.append(0)
             self.zoomRange.append(400)
             self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(sigbufs[i], signal_labels[i])
+            self.Graph(sigbufs[i], signal_labels[i])
         self.mdi.cascadeSubWindows()
 
     def read_txt(self, filename):
         with open(filename) as fp:
             signal_label = os.path.basename(filename)
-            arr = []
+            signal = []
             for line in fp:
-                arr.append((line.rstrip().split(" ")[1]))
-            data = np.array(arr).astype(np.float)
+                signal.append((line.rstrip().split(" ")[1]))
+            data = np.array(signal).astype(np.float)
             self.signals.append(data)
             self.signalGraph.append(0)
             self.zoomRange.append(400)
             self.graphWidget = pg.PlotWidget()
-            self.openSecondDialog(data, signal_label[0:-4])
-
-    # def read_mat(self, filename):
-    #     mat = loadmat(filename)
-    #     signal_label = os.path.basename(filename)
-    #     mat_file = pd.DataFrame(mat["F"]).iloc[:, 1]
-    #     self.signals.append(mat_file)
-    #     self.signalGraph.append(0)
-    #     self.graphWidget = pg.PlotWidget()
-    #     self.openSecondDialog(mat_file, signal_label[0:-4])
+            self.Graph(data, signal_label[0:-4])
 
     def read_csv(self, filename):
         data = pd.read_csv(filename).iloc[:, 1]
@@ -301,20 +304,18 @@ class Ui_MainWindow(QMainWindow):
         self.signalGraph.append(0)
         self.zoomRange.append(400)
         self.graphWidget = pg.PlotWidget()
-        self.openSecondDialog(array, signal_label[0:-4])
+        self.Graph(array, signal_label[0:-4])
 
     def browsefiles(self):
         self.closeWindow = True
         fname = QFileDialog.getOpenFileName(
-            self, "Open file", "../", " *.edf;;" "*.csv;;" " *.txt;;" " *.mat;;"
+            self, "Open file", "../", " *.edf;;" "*.csv;;" " *.txt;;"
         )
         file_path = fname[0]
         if file_path.endswith(".edf"):
             self.read_edf(file_path)
         elif file_path.endswith(".csv"):
             self.read_csv(file_path)
-        elif file_path.endswith(".mat"):
-            self.read_mat(file_path)
         elif file_path.endswith(".txt"):
             self.read_txt(file_path)
 
@@ -325,7 +326,7 @@ class Ui_MainWindow(QMainWindow):
         font.setWeight(50)
         MainWindow.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("sig.png"),
+        icon.addPixmap(QtGui.QPixmap("icons/sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet("")
@@ -381,35 +382,35 @@ class Ui_MainWindow(QMainWindow):
         MainWindow.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
         self.actionOpen = QtWidgets.QAction(MainWindow)
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap("open.png"),
+        icon1.addPixmap(QtGui.QPixmap("icons/open.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionOpen.setIcon(icon1)
         self.actionOpen.setObjectName("actionOpen")
         self.actionPlay = QtWidgets.QAction(MainWindow)
         self.actionPlay.setEnabled(False)
         icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap("play.png"),
+        icon2.addPixmap(QtGui.QPixmap("icons/play.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionPlay.setIcon(icon2)
         self.actionPlay.setObjectName("actionPlay")
         self.actionPause = QtWidgets.QAction(MainWindow)
         self.actionPause.setEnabled(False)
         icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap("stop.png"),
+        icon3.addPixmap(QtGui.QPixmap("icons/stop.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionPause.setIcon(icon3)
         self.actionPause.setObjectName("actionPause")
         self.actionBack = QtWidgets.QAction(MainWindow)
         self.actionBack.setEnabled(False)
         icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap("back.png"),
+        icon4.addPixmap(QtGui.QPixmap("icons/back.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionBack.setIcon(icon4)
         self.actionBack.setObjectName("actionBack")
         self.actionNext = QtWidgets.QAction(MainWindow)
         self.actionNext.setEnabled(False)
         icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap("next.png"),
+        icon5.addPixmap(QtGui.QPixmap("icons/next.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionNext.setIcon(icon5)
         self.actionNext.setObjectName("actionNext")
@@ -417,7 +418,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomIn.setEnabled(False)
         icon6 = QtGui.QIcon()
         icon6.addPixmap(
-            QtGui.QPixmap("zoom in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/zoom in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionZoomIn.setIcon(icon6)
         self.actionZoomIn.setObjectName("actionZoomIn")
@@ -425,21 +426,21 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.setEnabled(False)
         icon7 = QtGui.QIcon()
         icon7.addPixmap(
-            QtGui.QPixmap("zoom out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/zoom out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionZoomOut.setIcon(icon7)
         self.actionZoomOut.setObjectName("actionZoomOut")
         self.actionSpectrogram = QtWidgets.QAction(MainWindow)
         icon8 = QtGui.QIcon()
         icon8.addPixmap(
-            QtGui.QPixmap("spectr.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/spectr.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionSpectrogram.setIcon(icon8)
         self.actionSpectrogram.setObjectName("actionSpectrogram")
         self.actionSpectrogram.setEnabled(False)
         self.actionSave_as = QtWidgets.QAction(MainWindow)
         icon9 = QtGui.QIcon()
-        icon9.addPixmap(QtGui.QPixmap("save.png"),
+        icon9.addPixmap(QtGui.QPixmap("icons/save.png"),
                         QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionSave_as.setIcon(icon9)
         self.actionSave_as.setObjectName("actionSave_as")
@@ -503,14 +504,14 @@ class Ui_MainWindow(QMainWindow):
             lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
-            lambda: self.openSpectro(self.mdi.activeSubWindow())
+            lambda: self.checkSpectro(self.mdi.activeSubWindow())
         )
         self.actionNext.triggered.connect(
-            lambda: self.openSpectro(
+            lambda: self.checkSpectro(
                 self.scrollRight(self.mdi.activeSubWindow()))
         )
         self.actionBack.triggered.connect(
-            lambda: self.openSpectro(
+            lambda: self.checkSpectro(
                 self.scrollLeft(self.mdi.activeSubWindow()))
         )
         self.actionSave_as.triggered.connect(
