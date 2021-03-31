@@ -13,6 +13,7 @@ import os
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.exporters
+from fpdf import FPDF
 from PyQt5 import QtCore, QtGui, QtWidgets, QtPrintSupport
 from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
 from random import randint
@@ -52,55 +53,46 @@ class Ui_MainWindow(QMainWindow):
     signals = []
     signalGraph = []
     zoomRange = []
-    count = 0
-    j = 0
+    windowsCount = 0
     openedWinds = 0
+    zoomCnt = 0
     stop = False
     closeWindow = False
-    zoomCnt = 0
 
     def print_widget(self, widget_list, filename):
         imagelist = []
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_xy(0,0)
+        pdf.set_font('Arial', 'B', 10)
+        titlesList = []
+        yCord = 0
         for widget in widget_list:
-            # start scale
-            indx,flag=self.titleIndex(widget)
-            if flag:
+            if widget.windowTitle().find('Time-FFT')==-1:
+                titlesList.append(widget.windowTitle())
+            else:
+                strX = widget.windowTitle()[12:]
+                strX = strX+'x'
+                titlesList.append(strX)
+        titlesList.sort()
+        for title in titlesList:
+            indx,flag=self.titleIndex(title)
+            if title[-1]!='x':
                 graphWidget = self.graphWidg(self.signals[indx-1])
-                # graphWidget.setXRange(0, len(signal[indx-1]), padding=0)
                 exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
-                exporter.params['width'] = 500
-                exporter.params['height'] = 500
-                exporter.export(f'fileName{str(indx)}.png')
+                exporter.parameters()['width']=250
+                exporter.parameters()['height']=250
+                exporter.export(f'.fileName{str(indx)}.png')
+                pdf.cell(0,10, txt=title,ln=1,align='C')
+                yCord = pdf.get_y()
+                pdf.image(f'.fileName{str(indx)}.png', x = None, y = None, w = 95, h = 60, type = 'PNG', link = '')
+                os.remove(f'.fileName{str(indx)}.png')
             else:
                 fig,_ = self.spectroDraw(self.signals[indx-1])
-                fig.savefig(f'fileName{str(indx)}.png')
-            img = Image.open(f'fileName{str(indx)}.png')
-            imgConverted = img.convert('RGB')
-            imagelist.append(imgConverted)
-            os.remove(f'fileName{str(indx)}.png')
-        imagelist[0].save(filename,save_all=True, append_images=imagelist[1:])
-        # printer = QtPrintSupport.QPrinter(
-        #     QtPrintSupport.QPrinter.HighResolution)
-        # printer.setOutputFormat(QtPrintSupport.QPrinter.PdfFormat)
-        # printer.setOutputFileName(filename)
-        # painter = QtGui.QPainter(printer)
-        # 
-        # for widget in widget_list:
-        #     xscale = printer.pageRect().width() * 1.0 / widget.width()
-        #     yscale = printer.pageRect().height() * 1.0 / widget.height()
-        #     scale = min(xscale, yscale)
-        #     painter.translate(
-        #         printer.paperRect().x() + printer.pageRect().width() / 2,
-        #         printer.paperRect().y() + printer.pageRect().height() / 2,
-        #     )
-        #     painter.scale(scale, scale)
-        #     painter.translate(-widget.width() / 2, -widget.height() / 2)
-        #     # end scale
-        #     # widget.graphWidget.setXRange(0, 300000)
-        #     widget.render(painter)
-        #     painter.resetTransform()
-        #     printer.newPage()
-        # painter.end()
+                fig.savefig(f'.fileName{str(indx+20)}.png')
+                pdf.image(f'.fileName{str(indx+20)}.png', x = 110, y = yCord, w = 95, h = 60, type = 'PNG', link = '')
+                os.remove(f'.fileName{str(indx+20)}.png')
+        pdf.output(os.path.basename(filename))
 
     def printPDF(self, widget_list):
         fn, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -131,8 +123,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionNext.setEnabled(True)
         self.actionBack.setEnabled(True)
 
-    def titleIndex(self, subWindow):
-        subWindowTitle = subWindow.windowTitle()
+    def titleIndex(self, subWindowTitle):
         if subWindowTitle.find("Time-FFT") == -1:
             if subWindowTitle[1] != "#":
                 subWindowIndex = int(
@@ -149,17 +140,17 @@ class Ui_MainWindow(QMainWindow):
             return (subWindowIndex, False)
 
     def scrollRight(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow)
+        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         if flag:
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
 
     def scrollLeft(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow)
+        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         if flag:
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
 
     def zoomIn(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow)
+        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
         )[0][1] - subWindow.graphWidget.viewRange()[0][0]
         if flag and self.zoomRange[subWindowIndex-1] > 50:
@@ -171,7 +162,7 @@ class Ui_MainWindow(QMainWindow):
                 self.actionZoomOut.setEnabled(True)
 
     def zoomOut(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow)
+        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
         )[0][1] - subWindow.graphWidget.viewRange()[0][0]
         if flag and self.zoomRange[subWindowIndex-1] < len(self.signals[subWindowIndex-1]):
@@ -183,7 +174,7 @@ class Ui_MainWindow(QMainWindow):
                 self.actionZoomIn.setEnabled(True)
 
     def play(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow)
+        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
         )[0][1] - subWindow.graphWidget.viewRange()[0][0]
         cursor = 0
@@ -227,15 +218,15 @@ class Ui_MainWindow(QMainWindow):
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle(str(self.count) + "#Time-FFT: " + title)
+        mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
         mydialog.setWidget(mydialog.canvas)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
     def openSpectro(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow)
+        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         if flag:
-            self.count = self.count + 1
+            self.windowsCount = self.windowsCount + 1
             self.signalGraph.append(0)
             self.signals.append(0)
             self.zoomRange.append(0)
@@ -250,18 +241,17 @@ class Ui_MainWindow(QMainWindow):
         return(graphWidget)
 
     def openSecondDialog(self, arr, title):
-        self.count = self.count + 1
+        self.windowsCount = self.windowsCount + 1
         self.openedWinds += 1
         mydialog = MdiWind(self)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("sig.png"),
                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle(str(self.count) + "#" + title)
+        mydialog.setWindowTitle(str(self.windowsCount) + "#" + title)
         mydialog.graphWidget = self.graphWidg(arr)
         mydialog.graphWidget.setXRange(0,400,padding=0)
         mydialog.setWidget(mydialog.graphWidget)
-        x = mydialog.graphWidget.viewRange()
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
         self.showIcons()
