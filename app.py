@@ -102,7 +102,7 @@ class Ui_MainWindow(QMainWindow):
             else:
                 fig,_ = self.spectroDraw(self.signals[indx-1])
                 fig.savefig(f'.fileName{str(indx+99)}.png')
-                pdf.image(f'.fileName{str(indx+99)}.png', x = 110, y = yCord, w = 95, h = 60, type = 'PNG', link = '')
+                pdf.image(f'.fileName{str(indx+99)}.png', x = 110, y = yCord-2, w = 95, h = 60, type = 'PNG', link = '')
                 os.remove(f'.fileName{str(indx+99)}.png')
         pdf.output(filename)
 
