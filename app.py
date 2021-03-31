@@ -80,7 +80,6 @@ class Ui_MainWindow(QMainWindow):
                     titlesList.append(strX)
             itr+=1
         titlesList.sort()
-        print(titlesList)
         for title in titlesList:
             indx,_=self.titleIndex(title)
             if title[-1]!='x':
