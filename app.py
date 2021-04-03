@@ -64,8 +64,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionPlay.setEnabled(False)
         self.actionSpectrogram.setEnabled(False)
         self.actionSave_as.setEnabled(False)
-        self.actionNext.setEnabled(False)
-        self.actionBack.setEnabled(False)
+        self.actionForward.setEnabled(False)
+        self.actionBackward.setEnabled(False)
         self.actionPause.setEnabled(False)
 
     def showIcons(self):
@@ -75,8 +75,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionPause.setEnabled(True)
         self.actionSpectrogram.setEnabled(True)
         self.actionSave_as.setEnabled(True)
-        self.actionNext.setEnabled(True)
-        self.actionBack.setEnabled(True)
+        self.actionForward.setEnabled(True)
+        self.actionBackward.setEnabled(True)
 
     def titleIndex(self, subWindowTitle):
         # Extracts the index of the subwindow from the window title and checks if the window is a spectrogram or a normal graph
@@ -124,16 +124,17 @@ class Ui_MainWindow(QMainWindow):
             if title[-1] != "x":
                 # The widgets are transformed into images to get inserted into the PDF
                 graphPlot = self.graphDraw(self.signals[windowIndx - 1])
+                imgName = f"fileName{str(windowIndx)}.png"
                 exporter = pg.exporters.ImageExporter(graphPlot.plotItem)
                 exporter.parameters()["width"] = 250
                 exporter.parameters()["height"] = 250
-                exporter.export(f".fileName{str(windowIndx)}.png")
+                exporter.export(imgName)
                 title = title[2:] if title[1] == "#" else title[3:]
                 pdf.cell(0, 10, txt=title, ln=1, align="C")
                 # We change the index of the Y-Coordinate to insert the next image
                 yCord = pdf.get_y()
                 pdf.image(
-                    f".fileName{str(windowIndx)}.png",
+                    imgName,
                     x=None,
                     y=None,
                     w=95,
@@ -141,12 +142,13 @@ class Ui_MainWindow(QMainWindow):
                     type="PNG",
                     link="",
                 )
-                os.remove(f".fileName{str(windowIndx)}.png")
+                os.remove(imgName)
             else:
                 fig, _ = self.spectroDraw(self.signals[windowIndx - 1])
-                fig.savefig(f".fileName{str(windowIndx+99)}.png")
+                imgName = f".fileName{str(windowIndx + 99)}.png"
+                fig.savefig(imgName)
                 pdf.image(
-                    f".fileName{str(windowIndx+99)}.png",
+                    imgName,
                     x=110,
                     y=yCord - 2,
                     w=95,
@@ -154,7 +156,7 @@ class Ui_MainWindow(QMainWindow):
                     type="PNG",
                     link="",
                 )
-                os.remove(f".fileName{str(windowIndx+99)}.png")
+                os.remove(imgName)
         pdf.output(filename)
 
     def printPDF(self, widget_list):
@@ -468,22 +470,22 @@ class Ui_MainWindow(QMainWindow):
         )
         self.actionPause.setIcon(icon3)
         self.actionPause.setObjectName("actionPause")
-        self.actionBack = QtWidgets.QAction(MainWindow)
-        self.actionBack.setEnabled(False)
+        self.actionBackward = QtWidgets.QAction(MainWindow)
+        self.actionBackward.setEnabled(False)
         icon4 = QtGui.QIcon()
         icon4.addPixmap(
             QtGui.QPixmap("icons/back.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
-        self.actionBack.setIcon(icon4)
-        self.actionBack.setObjectName("actionBack")
-        self.actionNext = QtWidgets.QAction(MainWindow)
-        self.actionNext.setEnabled(False)
+        self.actionBackward.setIcon(icon4)
+        self.actionBackward.setObjectName("actionBackward")
+        self.actionForward = QtWidgets.QAction(MainWindow)
+        self.actionForward.setEnabled(False)
         icon5 = QtGui.QIcon()
         icon5.addPixmap(
             QtGui.QPixmap("icons/next.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
-        self.actionNext.setIcon(icon5)
-        self.actionNext.setObjectName("actionNext")
+        self.actionForward.setIcon(icon5)
+        self.actionForward.setObjectName("actionForward")
         self.actionZoomIn = QtWidgets.QAction(MainWindow)
         self.actionZoomIn.setEnabled(False)
         icon6 = QtGui.QIcon()
@@ -526,8 +528,8 @@ class Ui_MainWindow(QMainWindow):
         self.menus.addAction(self.actionExit)
         self.menuEdit.addAction(self.actionZoomIn)
         self.menuEdit.addAction(self.actionZoomOut)
-        self.menuPlay_navigate.addAction(self.actionBack)
-        self.menuPlay_navigate.addAction(self.actionNext)
+        self.menuPlay_navigate.addAction(self.actionBackward)
+        self.menuPlay_navigate.addAction(self.actionForward)
         self.menuPlay_navigate.addSeparator()
         self.menuPlay_navigate.addAction(self.actionPlay)
         self.menuPlay_navigate.addSeparator()
@@ -543,9 +545,9 @@ class Ui_MainWindow(QMainWindow):
         self.toolBar.addAction(self.actionZoomIn)
         self.toolBar.addAction(self.actionZoomOut)
         self.toolBar.addSeparator()
-        self.toolBar.addAction(self.actionBack)
+        self.toolBar.addAction(self.actionBackward)
         self.toolBar.addAction(self.actionPlay)
-        self.toolBar.addAction(self.actionNext)
+        self.toolBar.addAction(self.actionForward)
         self.toolBar.addAction(self.actionPause)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.actionSpectrogram)
@@ -566,10 +568,10 @@ class Ui_MainWindow(QMainWindow):
         self.actionSpectrogram.triggered.connect(
             lambda: self.checkSpectro(self.mdi.activeSubWindow())
         )
-        self.actionNext.triggered.connect(
+        self.actionForward.triggered.connect(
             lambda: self.scrollRight(self.mdi.activeSubWindow())
         )
-        self.actionBack.triggered.connect(
+        self.actionBackward.triggered.connect(
             lambda: self.scrollLeft(self.mdi.activeSubWindow())
         )
         self.actionSave_as.triggered.connect(
@@ -593,10 +595,10 @@ class Ui_MainWindow(QMainWindow):
         self.actionPause.setText(_translate("MainWindow", "Stop playing"))
         self.actionPause.setStatusTip(_translate("MainWindow", "Stops acqusition"))
         self.actionPause.setShortcut(_translate("MainWindow", "F6"))
-        self.actionBack.setText(_translate("MainWindow", "Backward"))
-        self.actionBack.setShortcut(_translate("MainWindow", "Ctrl+Left"))
-        self.actionNext.setText(_translate("MainWindow", "Forward"))
-        self.actionNext.setShortcut(_translate("MainWindow", "Ctrl+Right"))
+        self.actionBackward.setText(_translate("MainWindow", "Backward"))
+        self.actionBackward.setShortcut(_translate("MainWindow", "Ctrl+Left"))
+        self.actionForward.setText(_translate("MainWindow", "Forward"))
+        self.actionForward.setShortcut(_translate("MainWindow", "Ctrl+Right"))
         self.actionZoomIn.setText(_translate("MainWindow", "Zoom In"))
         self.actionZoomIn.setStatusTip(_translate("MainWindow", "Zoom selected part"))
         self.actionZoomIn.setShortcut(_translate("MainWindow", "Ctrl+Up"))
