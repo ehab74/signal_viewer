@@ -15,9 +15,9 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 class MdiWind(QtWidgets.QMdiSubWindow):
     def closeEvent(self, event):
         # Checkes if there is an open subwindow
-        if 'Time-FFT' not in self.windowTitle():
-            ui.openedWinds -= 1
-            if ui.openedWinds == 0:
+        if "Time-FFT" not in self.windowTitle():
+            ui.activeWinds -= 1
+            if ui.activeWinds == 0:
                 ui.hideIcons()
         itr = 0
         # Adds closed subwindows to a list
@@ -30,7 +30,7 @@ class MdiWind(QtWidgets.QMdiSubWindow):
 class MainWind(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         # Confirmation message when the user closes the app
-        if ui.closeWindow:
+        if ui.closeMssgBox:
             reply = QtWidgets.QMessageBox()
             reply.setText("Do you really want to close Sigview?")
             reply.setStandardButtons(
@@ -48,75 +48,15 @@ class MainWind(QtWidgets.QMainWindow):
 
 class Ui_MainWindow(QMainWindow):
     signals = []  # stores signals arrays
-    # checkpoints for the latest zoom/seek action on the graph's X-axis for all subwindows
-    signalGraph = []
-    zoomRange = []  # Stores the shown range of the X-axis for each graph
-    deletedWinds = []  # Stores the closed windows
+    graphRanges = (
+        []
+    )  # checkpoints for the latest zoom/seek action on the graph's X-axis for all subwindows
+    zoomRanges = []  # Stores the shown range of the X-axis for each graph
+    deletedWinds = []  # Stores the closed windows to erase them from the subWindowList
     windowsCount = 0  # Apply an index for each window
-    openedWinds = 0  # Stores the number of active windows
-    stop = False
-    closeWindow = False
-
-    def print_widget(self, widget_list, filename):
-        # prints all opened signals and their spectrograms (if required)
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_xy(0, 0)
-        pdf.set_font('Arial', 'B', 10)  # Font settings
-        titlesList = []  # stores the titles of open widgets
-        yCord = 0  # Y-coordinate on the PDF page
-        itr = 0
-        # To iterate on all the opened widgets to get their title
-        for widget in widget_list:
-            if itr not in self.deletedWinds:
-                if widget.windowTitle().find('Time-FFT') == -1:
-                    titlesList.append(widget.windowTitle())
-                else:
-                    # We put an indicator on the spectrogram widgets to mark them
-                    if widget.windowTitle()[1] != '#':
-                        strX = widget.windowTitle()[13:]
-                    else:
-                        strX = widget.windowTitle()[12:]
-                    strX = strX+'x'
-                    titlesList.append(strX)
-            itr += 1
-        titlesList.sort()
-        for title in titlesList:
-            indx, _ = self.titleIndex(title)
-            if title[-1] != 'x':
-                # The widgets are transformed into images to get inserted into the PDF
-                graphWidget = self.graphDraw(self.signals[indx-1])
-                exporter = pg.exporters.ImageExporter(graphWidget.plotItem)
-                exporter.parameters()['width'] = 250
-                exporter.parameters()['height'] = 250
-                exporter.export(f'.fileName{str(indx)}.png')
-                if title[1] == '#':
-                    titleNew = title[2:]
-                else:
-                    titleNew = title[3:]
-                pdf.cell(0, 10, txt=titleNew, ln=1, align='C')
-                # We change the index of the Y-Coordinate to insert the next image
-                yCord = pdf.get_y()
-                pdf.image(f'.fileName{str(indx)}.png', x=None,
-                          y=None, w=95, h=57, type='PNG', link='')
-                os.remove(f'.fileName{str(indx)}.png')
-            else:
-                fig, _ = self.spectroDraw(self.signals[indx-1])
-                fig.savefig(f'.fileName{str(indx+99)}.png')
-                pdf.image(f'.fileName{str(indx+99)}.png', x=110,
-                          y=yCord-2, w=95, h=60, type='PNG', link='')
-                os.remove(f'.fileName{str(indx+99)}.png')
-        pdf.output(filename)
-
-    def printPDF(self, widget_list):
-        # allows the user to save the file and name it as they like
-        fn, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export PDF", None, "PDF files (.pdf);;All Files()"
-        )
-        if fn:
-            if QtCore.QFileInfo(fn).suffix() == "":
-                fn += ".pdf"
-                self.print_widget(widget_list, fn)
+    activeWinds = 0  # Stores the number of active windows
+    stop = False  # Checks if stop is clicked to affect the play function
+    closeMssgBox = False  # Checks if a message box should appear on close event
 
     def hideIcons(self):
         self.actionZoomIn.setEnabled(False)
@@ -142,92 +82,185 @@ class Ui_MainWindow(QMainWindow):
         # Extracts the index of the subwindow from the window title and checks if the window is a spectrogram or a normal graph
         if subWindowTitle.find("Time-FFT") == -1:
             if subWindowTitle[1] != "#":
-                subWindowIndex = int(
-                    subWindowTitle[0]) * 10 + int(subWindowTitle[1])
+                subWindowIndex = int(subWindowTitle[0]) * 10 + int(subWindowTitle[1])
             else:
                 subWindowIndex = int(subWindowTitle[0])
             return (subWindowIndex, True)
         else:
             if subWindowTitle[1] != "#":
-                subWindowIndex = int(
-                    subWindowTitle[12]) * 10 + int(subWindowTitle[13])
+                subWindowIndex = int(subWindowTitle[12]) * 10 + int(subWindowTitle[13])
             else:
                 subWindowIndex = int(subWindowTitle[12])
             return (subWindowIndex, False)
 
+    # PDF
+    #####
+    def generatePDF(self, widget_list, filename):
+        # prints all opened signals and their spectrograms (if required)
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_xy(0, 0)
+        pdf.set_font("Arial", "B", 10)  # Font settings
+        titlesList = []  # stores the titles of open widgets
+        yCord = 0  # Y-coordinate on the PDF page
+        itr = 0
+        # To iterate on all the opened widgets to get their title
+        for widget in widget_list:
+            if itr not in self.deletedWinds:
+                if widget.windowTitle().find("Time-FFT") == -1:
+                    titlesList.append(widget.windowTitle())
+                else:
+                    # We put an indicator on the spectrogram widgets to mark them
+                    if widget.windowTitle()[1] != "#":
+                        tempStr = widget.windowTitle()[13:]
+                    else:
+                        tempStr = widget.windowTitle()[12:]
+                    tempStr = tempStr + "x"
+                    titlesList.append(tempStr)
+            itr += 1
+        titlesList.sort()
+        for title in titlesList:
+            windowIndx, _ = self.titleIndex(title)
+            if title[-1] != "x":
+                # The widgets are transformed into images to get inserted into the PDF
+                graphPlot = self.graphDraw(self.signals[windowIndx - 1])
+                exporter = pg.exporters.ImageExporter(graphPlot.plotItem)
+                exporter.parameters()["width"] = 250
+                exporter.parameters()["height"] = 250
+                exporter.export(f".fileName{str(windowIndx)}.png")
+                title = title[2:] if title[1] == "#" else title[3:]
+                pdf.cell(0, 10, txt=title, ln=1, align="C")
+                # We change the index of the Y-Coordinate to insert the next image
+                yCord = pdf.get_y()
+                pdf.image(
+                    f".fileName{str(windowIndx)}.png",
+                    x=None,
+                    y=None,
+                    w=95,
+                    h=57,
+                    type="PNG",
+                    link="",
+                )
+                os.remove(f".fileName{str(windowIndx)}.png")
+            else:
+                fig, _ = self.spectroDraw(self.signals[windowIndx - 1])
+                fig.savefig(f".fileName{str(windowIndx+99)}.png")
+                pdf.image(
+                    f".fileName{str(windowIndx+99)}.png",
+                    x=110,
+                    y=yCord - 2,
+                    w=95,
+                    h=60,
+                    type="PNG",
+                    link="",
+                )
+                os.remove(f".fileName{str(windowIndx+99)}.png")
+        pdf.output(filename)
+
+    def printPDF(self, widget_list):
+        # allows the user to save the file and name it as they like
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export PDF", None, "PDF files (.pdf);;All Files()"
+        )
+        if filename:
+            if QtCore.QFileInfo(filename).suffix() == "":
+                filename += ".pdf"
+            self.generatePDF(widget_list, filename)
+
+    # Scroll/Zoom
+    #############
     def scrollRight(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
-        if flag:
+        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
+        if graphFlag:
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
-            self.signalGraph[subWindowIndex-1] += 100
+            self.graphRanges[subWindowIndex - 1] += 100
 
     def scrollLeft(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
-        if flag:
+        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
+        if graphFlag:
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-            self.signalGraph[subWindowIndex-1] += 100
+            self.graphRanges[subWindowIndex - 1] -= 100
 
     def zoomIn(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
+        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
 
-        self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
-        )[0][1] - subWindow.graphWidget.viewRange()[0][0]
+        if graphFlag:
+            self.zoomRanges[subWindowIndex - 1] = (
+                subWindow.graphWidget.viewRange()[0][1]
+                - subWindow.graphWidget.viewRange()[0][0]
+            )
 
-        if flag and self.zoomRange[subWindowIndex-1] > 50:
-            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
-            self.zoomRange[subWindowIndex-1] *= 0.5
+            if self.zoomRanges[subWindowIndex - 1] > 50:
+                subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
+                self.zoomRanges[subWindowIndex - 1] *= 0.5
 
-            # Disables the zoom in button when the user reaches a certain range
-            if (self.zoomRange[subWindowIndex-1] <= 50):
-                self.actionZoomIn.setEnabled(False)
-            if self.zoomRange[subWindowIndex-1] < len(self.signals[subWindowIndex-1]):
-                # Enables the zoom out button when the user reaches a certain zoom-in-range
-                self.actionZoomOut.setEnabled(True)
+                # Disables the zoom in button when the user reaches a certain range
+                if self.zoomRanges[subWindowIndex - 1] <= 50:
+                    self.actionZoomIn.setEnabled(False)
+                if self.zoomRanges[subWindowIndex - 1] < len(
+                    self.signals[subWindowIndex - 1]
+                ):
+                    # Enables the zoom out button when the user reaches a certain zoom-in-range
+                    self.actionZoomOut.setEnabled(True)
 
     def zoomOut(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
-        self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
-        )[0][1] - subWindow.graphWidget.viewRange()[0][0]
+        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
 
-        if flag and self.zoomRange[subWindowIndex-1] < len(self.signals[subWindowIndex-1]):
-            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
-            self.zoomRange[subWindowIndex-1] *= 2
+        if graphFlag:
+            self.zoomRanges[subWindowIndex - 1] = (
+                subWindow.graphWidget.viewRange()[0][1]
+                - subWindow.graphWidget.viewRange()[0][0]
+            )
 
-            if (self.zoomRange[subWindowIndex-1] >= len(self.signals[subWindowIndex-1])):
-                self.actionZoomOut.setEnabled(False)
-            if (self.zoomRange[subWindowIndex-1] > 50):
-                self.actionZoomIn.setEnabled(True)
+            if self.zoomRanges[subWindowIndex - 1] < len(
+                self.signals[subWindowIndex - 1]
+            ):
+                subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
+                self.zoomRanges[subWindowIndex - 1] *= 2
 
+                if self.zoomRanges[subWindowIndex - 1] >= len(
+                    self.signals[subWindowIndex - 1]
+                ):
+                    self.actionZoomOut.setEnabled(False)
+                if self.zoomRanges[subWindowIndex - 1] > 50:
+                    self.actionZoomIn.setEnabled(True)
+
+    # Play/Pause
+    ###########
     def play(self, subWindow):
-        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
-        self.zoomRange[subWindowIndex-1] = subWindow.graphWidget.viewRange(
-        )[0][1] - subWindow.graphWidget.viewRange()[0][0]
+        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
+        self.zoomRanges[subWindowIndex - 1] = (
+            subWindow.graphWidget.viewRange()[0][1]
+            - subWindow.graphWidget.viewRange()[0][0]
+        )
 
         step = 0  # Cumulative variable that increases with time
-        if flag:
+        if graphFlag:
             # Check if this is the max limit of the signal is reached or not
-            while step + 40 + self.signalGraph[subWindowIndex - 1] < len(
+            while step + 40 + self.graphRanges[subWindowIndex - 1] < len(
                 self.signals[subWindowIndex - 1]
             ):
                 if self.stop:
                     self.stop = False
-                    self.signalGraph[subWindowIndex - 1] += step
+                    self.graphRanges[subWindowIndex - 1] += step
                     break
                 step += 40
-                self.playClicked(subWindow, subWindowIndex,
-                                 step)
+                self.playProcess(subWindow, subWindowIndex, step)
 
-    def playClicked(self, subWindow, subWindowIndex, step):
+    def playProcess(self, subWindow, subWindowIndex, step):
         subWindow.graphWidget.setXRange(
-            self.signalGraph[subWindowIndex - 1] + step,
-            self.zoomRange[subWindowIndex-1] + step +
-            self.signalGraph[subWindowIndex - 1],
+            self.graphRanges[subWindowIndex - 1] + step,
+            self.zoomRanges[subWindowIndex - 1]
+            + step
+            + self.graphRanges[subWindowIndex - 1],
         )
         QtWidgets.QApplication.processEvents()
 
     def stopClicked(self):
         self.stop = True
 
+    # Spectrogram
+    #############
     def spectroDraw(self, signal):
         # Draws the spectrogram of the signal
         figure = plt.figure()
@@ -237,15 +270,16 @@ class Ui_MainWindow(QMainWindow):
         ax = figure.add_subplot()
         ax.pcolormesh(t, f, 10 * np.log10(Sxx))
         canvas.draw()
-        return(figure, canvas)
+        return (figure, canvas)
 
     def Spectrogram(self, signal, title):
         # Inserts the drawn spectrogram into a widget
         mydialog = MdiWind(self)
         mydialog.figure, mydialog.canvas = self.spectroDraw(signal)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("icons/sig.png"),
-                       QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
         mydialog.setWidget(mydialog.canvas)
@@ -254,15 +288,16 @@ class Ui_MainWindow(QMainWindow):
 
     def checkSpectro(self, subWindow):
         # checks if the selected widget is a graph
-        subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
-        if flag:
+        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
+        if graphFlag:
             self.windowsCount = self.windowsCount + 1
-            self.signalGraph.append(0)
+            self.graphRanges.append(0)
             self.signals.append(0)
-            self.zoomRange.append(0)
-            self.Spectrogram(
-                self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            self.zoomRanges.append(0)
+            self.Spectrogram(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
+    # Graphs
+    #######
     def graphDraw(self, signal):
         # Plot the signal
         graphWidget = pg.PlotWidget()
@@ -270,16 +305,17 @@ class Ui_MainWindow(QMainWindow):
         graphWidget.setBackground("w")
         graphWidget.plot(signal, pen="b")
         graphWidget.showGrid(x=True, y=True)
-        return(graphWidget)
+        return graphWidget
 
     def Graph(self, signal, title):
         # insert the plot to a widget
         self.windowsCount = self.windowsCount + 1
-        self.openedWinds += 1
+        self.activeWinds += 1
         mydialog = MdiWind(self)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("icons/sig.png"),
-                       QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.windowsCount) + "#" + title)
         mydialog.graphWidget = self.graphDraw(signal)
@@ -289,6 +325,8 @@ class Ui_MainWindow(QMainWindow):
         mydialog.show()
         self.showIcons()
 
+    # Reading files
+    ###############
     def read_edf(self, filename):
         f = pyedflib.EdfReader(filename)
         n = f.signals_in_file  # number of signals in the file
@@ -301,8 +339,8 @@ class Ui_MainWindow(QMainWindow):
         # Graph each sample in the file
         for i in range(0, n):
             self.signals.append(sigbufs[i])
-            self.signalGraph.append(0)
-            self.zoomRange.append(400)
+            self.graphRanges.append(0)
+            self.zoomRanges.append(400)
             self.graphWidget = pg.PlotWidget()
             self.Graph(sigbufs[i], signal_labels[i])
         self.mdi.cascadeSubWindows()
@@ -315,8 +353,8 @@ class Ui_MainWindow(QMainWindow):
                 signal.append((line.rstrip().split(" ")[1]))
             data = np.array(signal).astype(np.float)
             self.signals.append(data)
-            self.signalGraph.append(0)
-            self.zoomRange.append(400)
+            self.graphRanges.append(0)
+            self.zoomRanges.append(400)
             self.graphWidget = pg.PlotWidget()
             self.Graph(data, signal_label[0:-4])
 
@@ -325,13 +363,13 @@ class Ui_MainWindow(QMainWindow):
         signal_label = os.path.basename(filename)
         array = data.to_numpy()
         self.signals.append(array)
-        self.signalGraph.append(0)
-        self.zoomRange.append(400)
+        self.graphRanges.append(0)
+        self.zoomRanges.append(400)
         self.graphWidget = pg.PlotWidget()
         self.Graph(array, signal_label[0:-4])
 
     def browsefiles(self):
-        self.closeWindow = True
+        self.closeMssgBox = True
         fname = QFileDialog.getOpenFileName(
             self, "Open file", "../", " *.edf;;" "*.csv;;" " *.txt;;"
         )
@@ -343,6 +381,8 @@ class Ui_MainWindow(QMainWindow):
         elif file_path.endswith(".txt"):
             self.read_txt(file_path)
 
+    # GUI
+    #####
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         font = QtGui.QFont()
@@ -350,8 +390,9 @@ class Ui_MainWindow(QMainWindow):
         font.setWeight(50)
         MainWindow.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("icons/sig.png"),
-                       QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -406,44 +447,48 @@ class Ui_MainWindow(QMainWindow):
         MainWindow.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
         self.actionOpen = QtWidgets.QAction(MainWindow)
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap("icons/open.png"),
-                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon1.addPixmap(
+            QtGui.QPixmap("icons/open.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionOpen.setIcon(icon1)
         self.actionOpen.setObjectName("actionOpen")
         self.actionPlay = QtWidgets.QAction(MainWindow)
         self.actionPlay.setEnabled(False)
         icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap("icons/play.png"),
-                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon2.addPixmap(
+            QtGui.QPixmap("icons/play.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionPlay.setIcon(icon2)
         self.actionPlay.setObjectName("actionPlay")
         self.actionPause = QtWidgets.QAction(MainWindow)
         self.actionPause.setEnabled(False)
         icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap("icons/stop.png"),
-                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon3.addPixmap(
+            QtGui.QPixmap("icons/stop.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionPause.setIcon(icon3)
         self.actionPause.setObjectName("actionPause")
         self.actionBack = QtWidgets.QAction(MainWindow)
         self.actionBack.setEnabled(False)
         icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap("icons/back.png"),
-                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon4.addPixmap(
+            QtGui.QPixmap("icons/back.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionBack.setIcon(icon4)
         self.actionBack.setObjectName("actionBack")
         self.actionNext = QtWidgets.QAction(MainWindow)
         self.actionNext.setEnabled(False)
         icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap("icons/next.png"),
-                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon5.addPixmap(
+            QtGui.QPixmap("icons/next.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionNext.setIcon(icon5)
         self.actionNext.setObjectName("actionNext")
         self.actionZoomIn = QtWidgets.QAction(MainWindow)
         self.actionZoomIn.setEnabled(False)
         icon6 = QtGui.QIcon()
         icon6.addPixmap(
-            QtGui.QPixmap(
-                "icons/zoom in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/zoom in.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionZoomIn.setIcon(icon6)
         self.actionZoomIn.setObjectName("actionZoomIn")
@@ -451,24 +496,23 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.setEnabled(False)
         icon7 = QtGui.QIcon()
         icon7.addPixmap(
-            QtGui.QPixmap(
-                "icons/zoom out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/zoom out.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionZoomOut.setIcon(icon7)
         self.actionZoomOut.setObjectName("actionZoomOut")
         self.actionSpectrogram = QtWidgets.QAction(MainWindow)
         icon8 = QtGui.QIcon()
         icon8.addPixmap(
-            QtGui.QPixmap(
-                "icons/spectr.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/spectr.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.actionSpectrogram.setIcon(icon8)
         self.actionSpectrogram.setObjectName("actionSpectrogram")
         self.actionSpectrogram.setEnabled(False)
         self.actionSave_as = QtWidgets.QAction(MainWindow)
         icon9 = QtGui.QIcon()
-        icon9.addPixmap(QtGui.QPixmap("icons/save.png"),
-                        QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon9.addPixmap(
+            QtGui.QPixmap("icons/save.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
         self.actionSave_as.setIcon(icon9)
         self.actionSave_as.setObjectName("actionSave_as")
         self.actionSave_as.setEnabled(False)
@@ -517,19 +561,16 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.triggered.connect(
             lambda: self.zoomOut(self.mdi.activeSubWindow())
         )
-        self.actionPlay.triggered.connect(
-            lambda: self.play(self.mdi.activeSubWindow()))
+        self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
             lambda: self.checkSpectro(self.mdi.activeSubWindow())
         )
         self.actionNext.triggered.connect(
-            lambda: self.checkSpectro(
-                self.scrollRight(self.mdi.activeSubWindow()))
+            lambda: self.scrollRight(self.mdi.activeSubWindow())
         )
         self.actionBack.triggered.connect(
-            lambda: self.checkSpectro(
-                self.scrollLeft(self.mdi.activeSubWindow()))
+            lambda: self.scrollLeft(self.mdi.activeSubWindow())
         )
         self.actionSave_as.triggered.connect(
             lambda: self.printPDF(self.mdi.subWindowList())
@@ -538,46 +579,36 @@ class Ui_MainWindow(QMainWindow):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "SIGVIEW"))
-        self.menus.setStatusTip(_translate(
-            "MainWindow", "Creates a new document"))
+        self.menus.setStatusTip(_translate("MainWindow", "Creates a new document"))
         self.menus.setTitle(_translate("MainWindow", "File"))
         self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
-        self.menuPlay_navigate.setTitle(
-            _translate("MainWindow", "Play && navigate"))
-        self.menuInstruments_markers.setTitle(
-            _translate("MainWindow", "3D tools"))
+        self.menuPlay_navigate.setTitle(_translate("MainWindow", "Play && navigate"))
+        self.menuInstruments_markers.setTitle(_translate("MainWindow", "3D tools"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.actionOpen.setText(_translate("MainWindow", "Open signal..."))
-        self.actionOpen.setStatusTip(
-            _translate("MainWindow", "Opens new signal"))
+        self.actionOpen.setStatusTip(_translate("MainWindow", "Opens new signal"))
         self.actionOpen.setShortcut(_translate("MainWindow", "Ctrl+O"))
-        self.actionPlay.setText(_translate(
-            "MainWindow", "Play signal (no sound)"))
+        self.actionPlay.setText(_translate("MainWindow", "Play signal (no sound)"))
         self.actionPlay.setShortcut(_translate("MainWindow", "F5"))
         self.actionPause.setText(_translate("MainWindow", "Stop playing"))
-        self.actionPause.setStatusTip(
-            _translate("MainWindow", "Stops acqusition"))
-        self.actionPause.setShortcut(_translate("MainWindow", "F7"))
+        self.actionPause.setStatusTip(_translate("MainWindow", "Stops acqusition"))
+        self.actionPause.setShortcut(_translate("MainWindow", "F6"))
         self.actionBack.setText(_translate("MainWindow", "Backward"))
         self.actionBack.setShortcut(_translate("MainWindow", "Ctrl+Left"))
         self.actionNext.setText(_translate("MainWindow", "Forward"))
         self.actionNext.setShortcut(_translate("MainWindow", "Ctrl+Right"))
         self.actionZoomIn.setText(_translate("MainWindow", "Zoom In"))
-        self.actionZoomIn.setStatusTip(
-            _translate("MainWindow", "Zoom selected part"))
+        self.actionZoomIn.setStatusTip(_translate("MainWindow", "Zoom selected part"))
         self.actionZoomIn.setShortcut(_translate("MainWindow", "Ctrl+Up"))
         self.actionZoomOut.setText(_translate("MainWindow", "Zoom Out"))
-        self.actionZoomOut.setStatusTip(
-            _translate("MainWindow", "Show previous zoom"))
+        self.actionZoomOut.setStatusTip(_translate("MainWindow", "Show previous zoom"))
         self.actionZoomOut.setShortcut(_translate("MainWindow", "Ctrl+Down"))
         self.actionSpectrogram.setText(_translate("MainWindow", "Spectrogram"))
         self.actionSpectrogram.setStatusTip(
-            _translate(
-                "MainWindow", "Spectrum of the visible part of the signal")
+            _translate("MainWindow", "Spectrum of the visible part of the signal")
         )
         self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
-        self.actionSave_as.setText(_translate(
-            "MainWindow", "Save signal as..."))
+        self.actionSave_as.setText(_translate("MainWindow", "Save signal as..."))
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
         self.actionExit.setShortcut(_translate("MainWindow", "Alt+F4"))
