@@ -94,7 +94,6 @@ class Ui_MainWindow(QMainWindow):
             return (subWindowIndex, False)
 
     # PDF
-    #####
     def generatePDF(self, widget_list, filename):
         # prints all opened signals and their spectrograms (if required)
         pdf = FPDF()
@@ -170,7 +169,6 @@ class Ui_MainWindow(QMainWindow):
             self.generatePDF(widget_list, filename)
 
     # Scroll/Zoom
-    #############
     def scrollRight(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
@@ -228,7 +226,6 @@ class Ui_MainWindow(QMainWindow):
                     self.actionZoomIn.setEnabled(True)
 
     # Play/Pause
-    ###########
     def play(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         self.zoomRanges[subWindowIndex - 1] = (
@@ -262,7 +259,6 @@ class Ui_MainWindow(QMainWindow):
         self.stop = True
 
     # Spectrogram
-    #############
     def spectroDraw(self, signal):
         # Draws the spectrogram of the signal
         figure = plt.figure()
@@ -299,7 +295,6 @@ class Ui_MainWindow(QMainWindow):
             self.Spectrogram(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     # Graphs
-    #######
     def graphDraw(self, signal):
         # Plot the signal
         graphWidget = pg.PlotWidget()
@@ -328,12 +323,11 @@ class Ui_MainWindow(QMainWindow):
         self.showIcons()
 
     # Reading files
-    ###############
     def read_edf(self, filename):
         f = pyedflib.EdfReader(filename)
         n = f.signals_in_file  # number of signals in the file
         signal_labels = f.getSignalLabels()
-        # initiats an ndarry of zeroes
+        # initiates an ndarry of zeroes
         sigbufs = np.zeros((n, f.getNSamples()[0]))
         for i in np.arange(n):
             # store the signal values in the array
@@ -384,7 +378,6 @@ class Ui_MainWindow(QMainWindow):
             self.read_txt(file_path)
 
     # GUI
-    #####
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         font = QtGui.QFont()
