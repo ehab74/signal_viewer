@@ -249,18 +249,11 @@ class Ui_MainWindow(QMainWindow):
     # Play/Pause
     def setStep(self,value):
         self.speedFactor=value
-
+        plays = False
+    
     def play(self, subWindow):
         self.actionPause.setEnabled(True)
         self.actionPlay.setEnabled(False)
-    def doubleStep(self):
-        if self.doubleSpeed != 3:
-            self.doubleSpeed += 1
-        else:
-            self.doubleSpeed = 1
-    plays = False
-
-    def play(self, subWindow):
         self.plays = True
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         self.zoomRanges[subWindowIndex - 1] = (
@@ -275,7 +268,6 @@ class Ui_MainWindow(QMainWindow):
                 self.signals[subWindowIndex - 1]
                 # while subWindow.graphWidget.viewRange()[0][1] < len(self.signals[subWindowIndex-1]):
             ):
-                print(step + 40 + self.graphRanges[subWindowIndex - 1])
 
                 if self.stop:
                     self.stop = False
