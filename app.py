@@ -57,7 +57,7 @@ class Ui_MainWindow(QMainWindow):
     activeWinds = 0  # Stores the number of active windows
     stop = False  # Checks if stop is clicked to affect the play function
     closeMssgBox = False  # Checks if a message box should appear on close event
-    doubleSpeed = 1
+    speedFactor = 1
 
     def hideIcons(self):
         self.actionZoomIn.setEnabled(False)
@@ -68,18 +68,28 @@ class Ui_MainWindow(QMainWindow):
         self.actionForward.setEnabled(False)
         self.actionBackward.setEnabled(False)
         self.actionPause.setEnabled(False)
-        self.actionDouble.setEnabled(False)
+        self.action0_5x.setEnabled(False)
+        self.action1x.setEnabled(False)
+        self.action2x.setEnabled(False)
+        self.actionCascade.setEnabled(False)
+        self.actionTile.setEnabled(False)
+        self.actionCloseAll.setEnabled(False)
 
     def showIcons(self):
         self.actionZoomIn.setEnabled(True)
         self.actionZoomOut.setEnabled(True)
         self.actionPlay.setEnabled(True)
-        self.actionPause.setEnabled(True)
         self.actionSpectrogram.setEnabled(True)
         self.actionSave_as.setEnabled(True)
         self.actionForward.setEnabled(True)
         self.actionBackward.setEnabled(True)
-        self.actionDouble.setEnabled(True)
+        self.action0_5x.setEnabled(True)
+        self.action1x.setEnabled(True)
+        self.action2x.setEnabled(True)
+        self.actionCascade.setEnabled(True)
+        
+        self.actionTile.setEnabled(True)
+        self.actionCloseAll.setEnabled(True)
 
     def titleIndex(self, subWindowTitle):
         # Extracts the index of the subwindow from the window title and checks if the window is a spectrogram or a normal graph
@@ -231,13 +241,12 @@ class Ui_MainWindow(QMainWindow):
                     self.actionZoomIn.setEnabled(True)
 
     # Play/Pause
-    def doubleStep(self):
-        if self.doubleSpeed != 3:
-            self.doubleSpeed += 1
-        else:
-            self.doubleSpeed = 1
+    def setStep(self,value):
+        self.speedFactor=value
 
     def play(self, subWindow):
+        self.actionPause.setEnabled(True)
+        self.actionPlay.setEnabled(False)
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         self.zoomRanges[subWindowIndex - 1] = (
             subWindow.graphWidget.viewRange()[0][1]
@@ -254,7 +263,7 @@ class Ui_MainWindow(QMainWindow):
                     self.stop = False
                     self.graphRanges[subWindowIndex - 1] += step
                     break
-                step += 40*self.doubleSpeed
+                step += 40*self.speedFactor
                 self.playProcess(subWindow, subWindowIndex, step)
 
     def playProcess(self, subWindow, subWindowIndex, step):
@@ -267,6 +276,8 @@ class Ui_MainWindow(QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     def stopClicked(self):
+        self.actionPause.setEnabled(False)
+        self.actionPlay.setEnabled(True)
         self.stop = True
 
     # Spectrogram
@@ -429,6 +440,8 @@ class Ui_MainWindow(QMainWindow):
         self.menuPlay_navigate.setObjectName("menuPlay_navigate")
         self.menuInstruments_markers = QtWidgets.QMenu(self.menubar)
         self.menuInstruments_markers.setObjectName("menuInstruments_markers")
+        self.menuWindow = QtWidgets.QMenu(self.menubar)
+        self.menuWindow.setObjectName("menuWindow")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -471,15 +484,33 @@ class Ui_MainWindow(QMainWindow):
         )
         self.actionPlay.setIcon(icon2)
         self.actionPlay.setObjectName("actionPlay")
-        self.actionDouble = QtWidgets.QAction(MainWindow)
-        self.actionDouble.setEnabled(False)
+        self.action0_5x = QtWidgets.QAction(MainWindow)
+        self.action0_5x.setEnabled(False)
         icon20 = QtGui.QIcon()
         icon20.addPixmap(
             QtGui.QPixmap(
-                "icons/Speed.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+                "icons/0.5x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
-        self.actionDouble.setIcon(icon20)
-        self.actionDouble.setObjectName("actionDouble")
+        self.action0_5x.setIcon(icon20)
+        self.action0_5x.setObjectName("action0_5x")
+        self.action1x = QtWidgets.QAction(MainWindow)
+        self.action1x.setEnabled(False)
+        icon21 = QtGui.QIcon()
+        icon21.addPixmap(
+            QtGui.QPixmap(
+                "icons/1x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        self.action1x.setIcon(icon21)
+        self.action1x.setObjectName("action1x")
+        self.action2x = QtWidgets.QAction(MainWindow)
+        self.action2x.setEnabled(False)
+        icon22 = QtGui.QIcon()
+        icon22.addPixmap(
+            QtGui.QPixmap(
+                "icons/2x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        self.action2x.setIcon(icon22)
+        self.action2x.setObjectName("action2x")
         self.actionPause = QtWidgets.QAction(MainWindow)
         self.actionPause.setEnabled(False)
         icon3 = QtGui.QIcon()
@@ -545,6 +576,15 @@ class Ui_MainWindow(QMainWindow):
         self.actionSave_as.setEnabled(False)
         self.actionExit = QtWidgets.QAction(MainWindow)
         self.actionExit.setObjectName("actionExit")
+        self.actionCascade = QtWidgets.QAction(MainWindow)
+        self.actionCascade.setEnabled(False)
+        self.actionCascade.setObjectName("actionCascade")
+        self.actionTile = QtWidgets.QAction(MainWindow)
+        self.actionTile.setEnabled(False)
+        self.actionTile.setObjectName("actionTile")
+        self.actionCloseAll = QtWidgets.QAction(MainWindow)
+        self.actionCloseAll.setEnabled(False)
+        self.actionCloseAll.setObjectName("actionCloseAll")
 
         self.menus.addAction(self.actionOpen)
         self.menus.addSeparator()
@@ -557,13 +597,20 @@ class Ui_MainWindow(QMainWindow):
         self.menuPlay_navigate.addAction(self.actionForward)
         self.menuPlay_navigate.addSeparator()
         self.menuPlay_navigate.addAction(self.actionPlay)
+        self.menuPlay_navigate.addAction(self.action0_5x)
+        self.menuPlay_navigate.addAction(self.action1x)
+        self.menuPlay_navigate.addAction(self.action2x)
         self.menuPlay_navigate.addSeparator()
         self.menuPlay_navigate.addAction(self.actionPause)
         self.menuInstruments_markers.addAction(self.actionSpectrogram)
+        self.menuWindow.addAction(self.actionCascade)
+        self.menuWindow.addAction(self.actionTile)
+        self.menuWindow.addAction(self.actionCloseAll)
         self.menubar.addAction(self.menus.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
         self.menubar.addAction(self.menuPlay_navigate.menuAction())
         self.menubar.addAction(self.menuInstruments_markers.menuAction())
+        self.menubar.addAction(self.menuWindow.menuAction())
         self.toolBar.addAction(self.actionOpen)
         self.toolBar.addAction(self.actionSave_as)
         self.toolBar.addSeparator()
@@ -572,9 +619,11 @@ class Ui_MainWindow(QMainWindow):
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.actionBackward)
         self.toolBar.addAction(self.actionPlay)
-        self.toolBar.addAction(self.actionDouble)
         self.toolBar.addAction(self.actionForward)
         self.toolBar.addAction(self.actionPause)
+        self.toolBar.addAction(self.action0_5x)
+        self.toolBar.addAction(self.action1x)
+        self.toolBar.addAction(self.action2x)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.actionSpectrogram)
 
@@ -604,7 +653,12 @@ class Ui_MainWindow(QMainWindow):
         self.actionSave_as.triggered.connect(
             lambda: self.printPDF(self.mdi.subWindowList())
         )
-        self.actionDouble.triggered.connect(self.doubleStep)
+        self.action0_5x.triggered.connect(lambda: self.setStep(0.5))
+        self.action1x.triggered.connect(lambda: self.setStep(1))
+        self.action2x.triggered.connect(lambda: self.setStep(2))
+        self.actionCascade.triggered.connect(lambda: self.mdi.cascadeSubWindows())
+        self.actionTile.triggered.connect(lambda: self.mdi.tileSubWindows())
+        self.actionCloseAll.triggered.connect(lambda: self.mdi.closeAllSubWindows())
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -617,6 +671,8 @@ class Ui_MainWindow(QMainWindow):
             _translate("MainWindow", "Play && navigate"))
         self.menuInstruments_markers.setTitle(
             _translate("MainWindow", "3D tools"))
+        self.menuWindow.setTitle(
+            _translate("MainWindow", "Window"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.actionOpen.setText(_translate("MainWindow", "Open signal..."))
         self.actionOpen.setStatusTip(
@@ -652,6 +708,18 @@ class Ui_MainWindow(QMainWindow):
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
         self.actionExit.setShortcut(_translate("MainWindow", "Alt+F4"))
+        self.actionCascade.setText(_translate(
+            "MainWindow", "Cascade"))
+        self.actionTile.setText(_translate(
+            "MainWindow", "Tile"))
+        self.actionCloseAll.setText(_translate(
+            "MainWindow", "Close All"))
+        self.action0_5x.setText(_translate(
+            "MainWindow", "Slower"))
+        self.action1x.setText(_translate(
+            "MainWindow", "Normal"))
+        self.action2x.setText(_translate(
+            "MainWindow", "Faster"))
 
 
 if __name__ == "__main__":
