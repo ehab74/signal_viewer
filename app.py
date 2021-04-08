@@ -198,16 +198,18 @@ class Ui_MainWindow(QMainWindow):
 
     def zoomIn(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
-
         if graphFlag:
             self.zoomRanges[subWindowIndex - 1] = (
                 subWindow.graphWidget.viewRange()[0][1]
                 - subWindow.graphWidget.viewRange()[0][0]
             )
+            zoomRange = self.zoomRanges[subWindowIndex-1]
 
             if self.zoomRanges[subWindowIndex - 1] > 50:
                 subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
                 self.zoomRanges[subWindowIndex - 1] *= 0.5
+                self.graphRanges[subWindowIndex -
+                                 1] = subWindow.graphWidget.viewRange()[0][0]
 
                 # Disables the zoom in button when the user reaches a certain range
                 if self.zoomRanges[subWindowIndex - 1] <= 50:
@@ -217,6 +219,8 @@ class Ui_MainWindow(QMainWindow):
                 ):
                     # Enables the zoom out button when the user reaches a certain zoom-in-range
                     self.actionZoomOut.setEnabled(True)
+            if self.plays and zoomRange >= len(self.signals[subWindowIndex-1]):
+                self.play(subWindow)
 
     def zoomOut(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
@@ -232,6 +236,8 @@ class Ui_MainWindow(QMainWindow):
             ):
                 subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
                 self.zoomRanges[subWindowIndex - 1] *= 2
+                self.graphRanges[subWindowIndex -
+                                 1] = subWindow.graphWidget.viewRange()[0][0]
 
                 if self.zoomRanges[subWindowIndex - 1] >= len(
                     self.signals[subWindowIndex - 1]
@@ -247,6 +253,15 @@ class Ui_MainWindow(QMainWindow):
     def play(self, subWindow):
         self.actionPause.setEnabled(True)
         self.actionPlay.setEnabled(False)
+    def doubleStep(self):
+        if self.doubleSpeed != 3:
+            self.doubleSpeed += 1
+        else:
+            self.doubleSpeed = 1
+    plays = False
+
+    def play(self, subWindow):
+        self.plays = True
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         self.zoomRanges[subWindowIndex - 1] = (
             subWindow.graphWidget.viewRange()[0][1]
@@ -256,9 +271,12 @@ class Ui_MainWindow(QMainWindow):
         step = 0  # Cumulative variable that increases with time
         if graphFlag:
             # Check if this is the max limit of the signal is reached or not
-            while step + 40 + self.graphRanges[subWindowIndex - 1] < len(
+            while step + 40 + self.graphRanges[subWindowIndex - 1] <= len(
                 self.signals[subWindowIndex - 1]
+                # while subWindow.graphWidget.viewRange()[0][1] < len(self.signals[subWindowIndex-1]):
             ):
+                print(step + 40 + self.graphRanges[subWindowIndex - 1])
+
                 if self.stop:
                     self.stop = False
                     self.graphRanges[subWindowIndex - 1] += step
@@ -273,12 +291,14 @@ class Ui_MainWindow(QMainWindow):
             + step
             + self.graphRanges[subWindowIndex - 1],
         )
+
         QtWidgets.QApplication.processEvents()
 
     def stopClicked(self):
         self.actionPause.setEnabled(False)
         self.actionPlay.setEnabled(True)
         self.stop = True
+        self.plays = False
 
     # Spectrogram
     def spectroDraw(self, signal):
