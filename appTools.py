@@ -30,7 +30,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 class EQWindow(QWidget):
     def __init__(self, parent=None):
-        super(EQindow, self).__init__(parent)
+        super(EQWindow, self).__init__(parent)
         self.sliders = []
         self.gains = []
         for i in range(10):
@@ -124,9 +124,10 @@ class Ui_MainWindow(QMainWindow):
     speedFactor = 1
 
     def equalizer(self):
+        self.activeWinds += 1
         self.EQWind = EQWindow()
         mydialog = MdiWind(self)
-        mydialog.setWidget(self.ewind)
+        mydialog.setWidget(self.EQWind)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
@@ -158,6 +159,7 @@ class Ui_MainWindow(QMainWindow):
         self.action1x.setEnabled(True)
         self.action2x.setEnabled(True)
         self.actionCascade.setEnabled(True)
+        self.actionPause.setEnabled(True)
 
         self.actionTile.setEnabled(True)
         self.actionCloseAll.setEnabled(True)
@@ -324,8 +326,7 @@ class Ui_MainWindow(QMainWindow):
         self.speedFactor = value
 
     def play(self, subWindow):
-        self.actionPause.setEnabled(True)
-        self.actionPlay.setEnabled(False)
+
         self.plays = True
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         self.zoomRanges[subWindowIndex - 1] = (
@@ -359,8 +360,6 @@ class Ui_MainWindow(QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     def stopClicked(self):
-        self.actionPause.setEnabled(False)
-        self.actionPlay.setEnabled(True)
         self.stop = True
         self.plays = False
 
@@ -495,11 +494,11 @@ class Ui_MainWindow(QMainWindow):
 
         self.Graph(samples, signal_label)
         ffti = []
-        x = 10 * 5
-        y = int(5 * 2500)
+        # x = 10 * 5
+        # y = int(5 * 2500)
 
-        for i in range(x, y):
-            fft[i] *= 50
+        # for i in range(x, y):
+        #     fft[i] *= 50
 
         for i in range(50001):
             ffti.append(
@@ -568,7 +567,7 @@ class Ui_MainWindow(QMainWindow):
         self.menuEdit.setObjectName("menuEdit")
         self.menuPlay_navigate = QtWidgets.QMenu(self.menubar)
         self.menuPlay_navigate.setObjectName("menuPlay_navigate")
-        self.menuInstruments_markers = QtWidgets.QMenu(self.menub99ar)
+        self.menuInstruments_markers = QtWidgets.QMenu(self.menubar)
         self.menuInstruments_markers.setObjectName("menuInstruments_markers")
         self.menuWindow = QtWidgets.QMenu(self.menubar)
         self.menuWindow.setObjectName("menuWindow")
