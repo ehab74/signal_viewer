@@ -30,7 +30,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 class EQWindow(QWidget):
     def __init__(self, parent=None):
-        super(EQindow, self).__init__(parent)
+        super(EQWindow, self).__init__(parent)
         self.sliders = []
         self.gains = []
         for i in range(10):
@@ -111,6 +111,7 @@ class MainWind(QtWidgets.QMainWindow):
 
 
 class Ui_MainWindow(QMainWindow):
+    ColorMap = 'viridis'
     signals = []  # stores signals arrays
     graphRanges = (
         []
@@ -126,7 +127,7 @@ class Ui_MainWindow(QMainWindow):
     def equalizer(self):
         self.EQWind = EQWindow()
         mydialog = MdiWind(self)
-        mydialog.setWidget(self.ewind)
+        mydialog.setWidget(self.EQWind)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
@@ -372,7 +373,8 @@ class Ui_MainWindow(QMainWindow):
         figure.clear()
         f, t, Sxx = sig.spectrogram(signal, fs=200)
         ax = figure.add_subplot()
-        ax.pcolormesh(t, f, 10 * np.log10(Sxx))
+        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=self.ColorMap)
+        figure.colorbar(img, ax=ax)
         canvas.draw()
         return (figure, canvas)
 
@@ -568,7 +570,7 @@ class Ui_MainWindow(QMainWindow):
         self.menuEdit.setObjectName("menuEdit")
         self.menuPlay_navigate = QtWidgets.QMenu(self.menubar)
         self.menuPlay_navigate.setObjectName("menuPlay_navigate")
-        self.menuInstruments_markers = QtWidgets.QMenu(self.menub99ar)
+        self.menuInstruments_markers = QtWidgets.QMenu(self.menubar)
         self.menuInstruments_markers.setObjectName("menuInstruments_markers")
         self.menuWindow = QtWidgets.QMenu(self.menubar)
         self.menuWindow.setObjectName("menuWindow")
