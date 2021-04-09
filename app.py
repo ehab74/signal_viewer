@@ -106,7 +106,6 @@ class Ui_MainWindow(QMainWindow):
                 pdf.image(f'.fileName{str(indx+99)}.png', x=110,
                           y=yCord-2, w=95, h=60, type='PNG', link='')
                 os.remove(f'.fileName{str(indx+99)}.png')
-        pdf.output(filename)
 
     def printPDF(self, widget_list):
         # allows the user to save the file and name it as they like
@@ -116,6 +115,7 @@ class Ui_MainWindow(QMainWindow):
         if fn:
             if QtCore.QFileInfo(fn).suffix() == "":
                 fn += ".pdf"
+        pdf.output(filename)
                 self.print_widget(widget_list, fn)
 
     def hideIcons(self):
@@ -165,7 +165,7 @@ class Ui_MainWindow(QMainWindow):
         subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
         if flag:
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-            self.signalGraph[subWindowIndex-1] += 100
+            self.signalGraph[subWindowIndex-1] -= 100
 
     def zoomIn(self, subWindow):
         subWindowIndex, flag = self.titleIndex(subWindow.windowTitle())
