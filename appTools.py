@@ -6,10 +6,74 @@ import pyqtgraph as pg
 import pyqtgraph.exporters
 from fpdf import FPDF
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QDialog, QFileDialog, QMainWindow, QWidget
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QMainWindow,
+    QWidget,
+    QGridLayout,
+    QVBoxLayout,
+    QSlider,
+    QLabel,
+    QGroupBox,
+)
+import math
+import librosa
+from librosa import display
+import scipy.fftpack
+from scipy.io.wavfile import write
 from scipy import signal as sig
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+
+
+class EQWindow(QWidget):
+    def __init__(self, parent=None):
+        super(EQindow, self).__init__(parent)
+        self.sliders = []
+        self.gains = []
+        for i in range(10):
+            self.sliders.append(QSlider(Qt.Vertical))
+        for i in range(10):
+            self.gains.append(QLabel)
+        grid = QGridLayout()
+        grid.addWidget(self.createExampleGroup(60, 0), 0, 0)
+        grid.addWidget(self.createExampleGroup(170, 1), 0, 1)
+        grid.addWidget(self.createExampleGroup(310, 2), 0, 2)
+        grid.addWidget(self.createExampleGroup(600, 3), 0, 3)
+        grid.addWidget(self.createExampleGroup(1000, 4), 0, 4)
+        grid.addWidget(self.createExampleGroup(3000, 5), 0, 5)
+        grid.addWidget(self.createExampleGroup(6000, 6), 0, 6)
+        grid.addWidget(self.createExampleGroup(12000, 7), 0, 7)
+        grid.addWidget(self.createExampleGroup(14000, 8), 0, 8)
+        grid.addWidget(self.createExampleGroup(16000, 9), 0, 9)
+        self.setLayout(grid)
+
+        self.setWindowTitle("PyQt5 Sliders")
+
+    def createExampleGroup(self, txt, ind):
+        groupBox = QGroupBox()
+
+        self.sliders[ind].setMaximum(199)
+        self.sliders[ind].setMinimum(-199)
+        self.sliders[ind].setValue(0)
+        self.sliders[ind].valueChanged.connect(lambda: self.valuechange(ind))
+        freq = QLabel(self)
+        freq.setText(str(txt) + " Hz")
+        self.gains[ind] = QLabel()
+        self.gains[ind].setText("0.0 dB")
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.sliders[ind], alignment=Qt.AlignHCenter)
+        vbox.addWidget(freq, alignment=Qt.AlignCenter)
+        vbox.addWidget(self.gains[ind], alignment=Qt.AlignCenter)
+        groupBox.setLayout(vbox)
+
+        return groupBox
+
+    def valuechange(self, ind):
+        gainInc = float(self.sliders[ind].value() / 10)
+        self.gains[ind].setText(str(gainInc) + " dB")
 
 
 class MdiWind(QtWidgets.QMdiSubWindow):
@@ -59,6 +123,13 @@ class Ui_MainWindow(QMainWindow):
     closeMssgBox = False  # Checks if a message box should appear on close event
     speedFactor = 1
 
+    def equalizer(self):
+        self.EQWind = EQWindow()
+        mydialog = MdiWind(self)
+        mydialog.setWidget(self.ewind)
+        self.mdi.addSubWindow(mydialog)
+        mydialog.show()
+
     def hideIcons(self):
         self.actionZoomIn.setEnabled(False)
         self.actionZoomOut.setEnabled(False)
@@ -87,7 +158,7 @@ class Ui_MainWindow(QMainWindow):
         self.action1x.setEnabled(True)
         self.action2x.setEnabled(True)
         self.actionCascade.setEnabled(True)
-        
+
         self.actionTile.setEnabled(True)
         self.actionCloseAll.setEnabled(True)
 
@@ -203,13 +274,14 @@ class Ui_MainWindow(QMainWindow):
                 subWindow.graphWidget.viewRange()[0][1]
                 - subWindow.graphWidget.viewRange()[0][0]
             )
-            zoomRange = self.zoomRanges[subWindowIndex-1]
+            zoomRange = self.zoomRanges[subWindowIndex - 1]
 
             if self.zoomRanges[subWindowIndex - 1] > 50:
                 subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
                 self.zoomRanges[subWindowIndex - 1] *= 0.5
-                self.graphRanges[subWindowIndex -
-                                 1] = subWindow.graphWidget.viewRange()[0][0]
+                self.graphRanges[
+                    subWindowIndex - 1
+                ] = subWindow.graphWidget.viewRange()[0][0]
 
                 # Disables the zoom in button when the user reaches a certain range
                 if self.zoomRanges[subWindowIndex - 1] <= 50:
@@ -219,7 +291,7 @@ class Ui_MainWindow(QMainWindow):
                 ):
                     # Enables the zoom out button when the user reaches a certain zoom-in-range
                     self.actionZoomOut.setEnabled(True)
-            if self.plays and zoomRange >= len(self.signals[subWindowIndex-1]):
+            if self.plays and zoomRange >= len(self.signals[subWindowIndex - 1]):
                 self.play(subWindow)
 
     def zoomOut(self, subWindow):
@@ -236,8 +308,9 @@ class Ui_MainWindow(QMainWindow):
             ):
                 subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
                 self.zoomRanges[subWindowIndex - 1] *= 2
-                self.graphRanges[subWindowIndex -
-                                 1] = subWindow.graphWidget.viewRange()[0][0]
+                self.graphRanges[
+                    subWindowIndex - 1
+                ] = subWindow.graphWidget.viewRange()[0][0]
 
                 if self.zoomRanges[subWindowIndex - 1] >= len(
                     self.signals[subWindowIndex - 1]
@@ -247,10 +320,9 @@ class Ui_MainWindow(QMainWindow):
                     self.actionZoomIn.setEnabled(True)
 
     # Play/Pause
-    def setStep(self,value):
-        self.speedFactor=value
-        plays = False
-    
+    def setStep(self, value):
+        self.speedFactor = value
+
     def play(self, subWindow):
         self.actionPause.setEnabled(True)
         self.actionPlay.setEnabled(False)
@@ -273,7 +345,7 @@ class Ui_MainWindow(QMainWindow):
                     self.stop = False
                     self.graphRanges[subWindowIndex - 1] += step
                     break
-                step += 40*self.speedFactor
+                step += 40 * self.speedFactor
                 self.playProcess(subWindow, subWindowIndex, step)
 
     def playProcess(self, subWindow, subWindowIndex, step):
@@ -352,8 +424,9 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWindowTitle(str(self.windowsCount) + "#" + title)
         mydialog.graphWidget = self.graphDraw(signal)
         mydialog.graphWidget.setXRange(0, 400, padding=0)
-        mydialog.graphWidget.setLimits(xMin=0, xMax=len(
-            signal), yMin=min(signal), yMax=max(signal))
+        mydialog.graphWidget.setLimits(
+            xMin=0, xMax=len(signal), yMin=min(signal), yMax=max(signal)
+        )
         mydialog.setWidget(mydialog.graphWidget)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
@@ -401,10 +474,53 @@ class Ui_MainWindow(QMainWindow):
         self.graphWidget = pg.PlotWidget()
         self.Graph(array, signal_label[0:-4])
 
+    def read_wav(self, filename):
+        signal_label = os.path.basename(filename)
+
+        samples, sampling_rate = librosa.load(
+            filename, sr=None, mono=True, offset=0.0, duration=None
+        )
+
+        self.signals.append(samples)
+        self.graphRanges.append(0)
+        self.zoomRanges.append(400)
+
+        duration = len(samples) / sampling_rate
+        time = np.arange(0, duration, 1 / sampling_rate)
+        # librosa.display.waveplot(y=samples, sr=sampling_rate)
+        frequency = []
+        fftphase = np.angle(scipy.fft.rfft(samples))
+        fft = abs(scipy.fft.rfft(samples))
+        freqs = np.fft.rfftfreq(len(fft), (1.0 / sampling_rate))
+
+        self.Graph(samples, signal_label)
+        ffti = []
+        x = 10 * 5
+        y = int(5 * 2500)
+
+        for i in range(x, y):
+            fft[i] *= 50
+
+        for i in range(50001):
+            ffti.append(
+                fft[i] * math.cos((fftphase[i])) + fft[i] *
+                math.sin((fftphase[i])) * 1j
+            )
+
+        s = scipy.fft.irfft(ffti)
+        s = np.array(s)
+
+        self.signals.append(s)
+        self.graphRanges.append(0)
+        self.zoomRanges.append(400)
+        self.Graph(s, signal_label + " modified")
+        write("test.wav", sampling_rate, s)
+        self.equalizer()
+
     def browsefiles(self):
         self.closeMssgBox = True
         fname = QFileDialog.getOpenFileName(
-            self, "Open file", "../", " *.edf;;" "*.csv;;" " *.txt;;"
+            self, "Open file", "../", " *.wav;;" " *.edf;;" "*.csv;;" " *.txt;;"
         )
         file_path = fname[0]
         if file_path.endswith(".edf"):
@@ -413,6 +529,8 @@ class Ui_MainWindow(QMainWindow):
             self.read_csv(file_path)
         elif file_path.endswith(".txt"):
             self.read_txt(file_path)
+        elif file_path.endswith(".wav"):
+            self.read_wav(file_path)
 
     # GUI
     def setupUi(self, MainWindow):
@@ -450,7 +568,7 @@ class Ui_MainWindow(QMainWindow):
         self.menuEdit.setObjectName("menuEdit")
         self.menuPlay_navigate = QtWidgets.QMenu(self.menubar)
         self.menuPlay_navigate.setObjectName("menuPlay_navigate")
-        self.menuInstruments_markers = QtWidgets.QMenu(self.menubar)
+        self.menuInstruments_markers = QtWidgets.QMenu(self.menub99ar)
         self.menuInstruments_markers.setObjectName("menuInstruments_markers")
         self.menuWindow = QtWidgets.QMenu(self.menubar)
         self.menuWindow.setObjectName("menuWindow")
@@ -509,8 +627,7 @@ class Ui_MainWindow(QMainWindow):
         self.action1x.setEnabled(False)
         icon21 = QtGui.QIcon()
         icon21.addPixmap(
-            QtGui.QPixmap(
-                "icons/1x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/1x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.action1x.setIcon(icon21)
         self.action1x.setObjectName("action1x")
@@ -518,8 +635,7 @@ class Ui_MainWindow(QMainWindow):
         self.action2x.setEnabled(False)
         icon22 = QtGui.QIcon()
         icon22.addPixmap(
-            QtGui.QPixmap(
-                "icons/2x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+            QtGui.QPixmap("icons/2x.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         self.action2x.setIcon(icon22)
         self.action2x.setObjectName("action2x")
@@ -668,9 +784,11 @@ class Ui_MainWindow(QMainWindow):
         self.action0_5x.triggered.connect(lambda: self.setStep(0.5))
         self.action1x.triggered.connect(lambda: self.setStep(1))
         self.action2x.triggered.connect(lambda: self.setStep(2))
-        self.actionCascade.triggered.connect(lambda: self.mdi.cascadeSubWindows())
+        self.actionCascade.triggered.connect(
+            lambda: self.mdi.cascadeSubWindows())
         self.actionTile.triggered.connect(lambda: self.mdi.tileSubWindows())
-        self.actionCloseAll.triggered.connect(lambda: self.mdi.closeAllSubWindows())
+        self.actionCloseAll.triggered.connect(
+            lambda: self.mdi.closeAllSubWindows())
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -683,8 +801,7 @@ class Ui_MainWindow(QMainWindow):
             _translate("MainWindow", "Play && navigate"))
         self.menuInstruments_markers.setTitle(
             _translate("MainWindow", "3D tools"))
-        self.menuWindow.setTitle(
-            _translate("MainWindow", "Window"))
+        self.menuWindow.setTitle(_translate("MainWindow", "Window"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.actionOpen.setText(_translate("MainWindow", "Open signal..."))
         self.actionOpen.setStatusTip(
@@ -720,18 +837,12 @@ class Ui_MainWindow(QMainWindow):
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
         self.actionExit.setShortcut(_translate("MainWindow", "Alt+F4"))
-        self.actionCascade.setText(_translate(
-            "MainWindow", "Cascade"))
-        self.actionTile.setText(_translate(
-            "MainWindow", "Tile"))
-        self.actionCloseAll.setText(_translate(
-            "MainWindow", "Close All"))
-        self.action0_5x.setText(_translate(
-            "MainWindow", "Slower"))
-        self.action1x.setText(_translate(
-            "MainWindow", "Normal"))
-        self.action2x.setText(_translate(
-            "MainWindow", "Faster"))
+        self.actionCascade.setText(_translate("MainWindow", "Cascade"))
+        self.actionTile.setText(_translate("MainWindow", "Tile"))
+        self.actionCloseAll.setText(_translate("MainWindow", "Close All"))
+        self.action0_5x.setText(_translate("MainWindow", "Slower"))
+        self.action1x.setText(_translate("MainWindow", "Normal"))
+        self.action2x.setText(_translate("MainWindow", "Faster"))
 
 
 if __name__ == "__main__":
