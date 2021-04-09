@@ -125,6 +125,7 @@ class Ui_MainWindow(QMainWindow):
     speedFactor = 1
 
     def equalizer(self):
+        self.activeWinds += 1
         self.EQWind = EQWindow()
         mydialog = MdiWind(self)
         mydialog.setWidget(self.EQWind)
@@ -159,6 +160,7 @@ class Ui_MainWindow(QMainWindow):
         self.action1x.setEnabled(True)
         self.action2x.setEnabled(True)
         self.actionCascade.setEnabled(True)
+        self.actionPause.setEnabled(True)
 
         self.actionTile.setEnabled(True)
         self.actionCloseAll.setEnabled(True)
@@ -325,8 +327,7 @@ class Ui_MainWindow(QMainWindow):
         self.speedFactor = value
 
     def play(self, subWindow):
-        self.actionPause.setEnabled(True)
-        self.actionPlay.setEnabled(False)
+
         self.plays = True
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         self.zoomRanges[subWindowIndex - 1] = (
@@ -360,8 +361,6 @@ class Ui_MainWindow(QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     def stopClicked(self):
-        self.actionPause.setEnabled(False)
-        self.actionPlay.setEnabled(True)
         self.stop = True
         self.plays = False
 
@@ -497,11 +496,11 @@ class Ui_MainWindow(QMainWindow):
 
         self.Graph(samples, signal_label)
         ffti = []
-        x = 10 * 5
-        y = int(5 * 2500)
+        # x = 10 * 5
+        # y = int(5 * 2500)
 
-        for i in range(x, y):
-            fft[i] *= 50
+        # for i in range(x, y):
+        #     fft[i] *= 50
 
         for i in range(50001):
             ffti.append(
