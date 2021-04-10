@@ -36,7 +36,7 @@ class EQWindow(QWidget):
         self.gainLabels = []
         self.bands = []
         self.gainValues = []
-        self.gainOld = [1]*10
+        self.gainOld = [1] * 10
         grid = QGridLayout()
         temp = len(ui.freqs) / 10
         for i in range(10):
@@ -429,8 +429,7 @@ class Ui_MainWindow(QMainWindow):
             QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle(
-            str(self.windowsCount) + "#Time-FFT: " + title)
+        mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
         mydialog.setWidget(mydialog.canvas)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
@@ -477,21 +476,45 @@ class Ui_MainWindow(QMainWindow):
                 + self.fft[i] * math.sin((self.fftphase[i])) * 1j
             )
 
-        s = scipy.fft.irfft(ffti)
-        s = np.array(s)
+        ffti = scipy.fft.irfft(ffti)
+        ffti = np.array(ffti)
 
         itr = 0
-        for widget in ui.mdi.subWindowList():
-            if widget.windowTitle().find("modified") != -1 and widget.windowTitle().find('Time-FFT') == -1:
+        for widget in self.mdi.subWindowList():
+            if (
+                widget.windowTitle().find("modified") != -1
+                and widget.windowTitle().find("Time-FFT") == -1
+            ):
                 self.windowIndx = itr
             itr += 1
         title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
         subWindowIndex, _ = self.titleIndex(title)
         mydialog = self.mdi.subWindowList()[self.windowIndx]
-        mydialog.graphWidget = self.graphDraw(s)
+        mydialog.graphWidget = self.graphDraw(ffti)
+        mydialog.graphWidget.setLimits(
+            xMin=0, xMax=len(ffti), yMin=min(ffti), yMax=max(ffti)
+        )
         mydialog.setWidget(mydialog.graphWidget)
-        self.signals[subWindowIndex - 1] = s
-        write("test.wav", self.sampling_rate, s)
+        self.signals[subWindowIndex - 1] = ffti
+        flag = False
+        itr = 0
+        for widget in self.mdi.subWindowList():
+            if (
+                widget.windowTitle().find("modified") != -1
+                and widget.windowTitle().find("Time-FFT") != -1
+            ):
+                self.windowIndx = itr
+                flag = True
+            itr += 1
+        if flag:
+            title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
+            subWindowIndex, _ = self.titleIndex(title)
+            mydialog = self.mdi.subWindowList()[self.windowIndx]
+            mydialog.figure, mydialog.canvas = self.spectroDraw(ffti, title)
+
+            mydialog.setWidget(mydialog.canvas)
+
+        write("test.wav", self.sampling_rate, ffti)
 
     def graphDraw(self, signal):
         # Plot the signal
@@ -586,20 +609,6 @@ class Ui_MainWindow(QMainWindow):
 
         self.Graph(samples, signal_label)
         ffti = []
-        # x = 10 * 5
-        # y = int(5 * 2500)
-
-        # for i in range(x, y):
-        #     fft[i] *= 50
-
-        # for i in range(50001):
-        #     ffti.append(
-        #         self.fft[i] * math.cos((fftphase[i])) + self.fft[i] *
-        #         math.sin((fftphase[i])) * 1j
-        #     )
-
-        # s = scipy.fft.irfft(ffti)
-        # s = np.array(s)
 
         self.signals.append(samples)
         self.graphRanges.append(0)
@@ -894,8 +903,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.triggered.connect(
             lambda: self.zoomOut(self.mdi.activeSubWindow())
         )
-        self.actionPlay.triggered.connect(
-            lambda: playsound("test.wav"))
+        self.actionPlay.triggered.connect(lambda: playsound("test.wav"))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
             lambda: self.checkSpectro(self.mdi.activeSubWindow())
