@@ -26,6 +26,7 @@ from scipy.io.wavfile import write
 from scipy import signal as sig
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from playsound import playsound
 
 
 class EQWindow(QWidget):
@@ -35,17 +36,17 @@ class EQWindow(QWidget):
         self.gainLabels = []
         self.bands = []
         self.gainValues = []
-        self.gainOld = 1
+        self.gainOld = [1]*10
         grid = QGridLayout()
-        temp = len(ui.freqs)/10
+        temp = len(ui.freqs) / 10
         for i in range(10):
             self.sliders.append(QSlider(Qt.Vertical))
             self.gainLabels.append(QLabel)
             self.bands.append(0)
             self.gainValues.append(0.0)
-            grid.addWidget(self.createExampleGroup(int(temp*(i+1)), i), 0, i)
-        
-        
+            grid.addWidget(self.createExampleGroup(
+                int(temp * (i + 1)), i), 0, i)
+
         self.setLayout(grid)
 
         self.setWindowTitle("Equalizer")
@@ -61,7 +62,7 @@ class EQWindow(QWidget):
         self.sliders[ind].setSingleStep(1)
         self.sliders[ind].valueChanged.connect(lambda: self.valueChanging(ind))
         self.sliders[ind].sliderReleased.connect(lambda: self.valueChange(ind))
-        self.bands[ind]=txt
+        self.bands[ind] = txt
         freq = QLabel()
         freq.setText(str(txt) + " Hz")
         self.gainLabels[ind] = QLabel()
@@ -74,25 +75,28 @@ class EQWindow(QWidget):
 
         return groupBox
 
-    def valueChanging(self,ind):
-        if self.sliders[ind].value()>0:
-            self.gainValues[ind] =self.sliders[ind].value()
-        elif self.sliders[ind].value()<0:
-            self.gainValues[ind] = float(1/(self.sliders[ind].value()*-1))
+    def valueChanging(self, ind):
+        if self.sliders[ind].value() > 0:
+            self.gainValues[ind] = self.sliders[ind].value()
+        elif self.sliders[ind].value() < 0:
+            self.gainValues[ind] = float(1 / (self.sliders[ind].value() * -1))
         else:
             self.gainValues[ind] = 1
-        self.gainLabels[ind].setText(str(float(self.sliders[ind].value())) + " dB")
+        self.gainLabels[ind].setText(
+            str(float(self.sliders[ind].value())) + " dB")
 
     def valueChange(self, ind):
         # print(2*(self.bands[ind]-int(len(ui.freqs)/10)),2*self.bands[ind]-1)
-        if self.gainValues[ind]==0:
-            self.gainValues[ind]=1
+        if self.gainValues[ind] == 0:
+            self.gainValues[ind] = 1
         # print(self.sliders[ind].value())
-        for i in range(2*(self.bands[ind]-int(len(ui.freqs)/10)),2*self.bands[ind]-1):
-            ui.fft[i]*=self.gainValues[ind]/self.gainOld
-        self.gainOld=self.gainValues[ind]
+        for i in range(
+            2 * (self.bands[ind] - int(len(ui.freqs) / 10)
+                 ), 2 * self.bands[ind] - 1
+        ):
+            ui.fft[i] *= self.gainValues[ind] / self.gainOld[ind]
+        self.gainOld[ind] = self.gainValues[ind]
         ui.updateGraph()
-        
 
 
 class MdiWind(QtWidgets.QMdiSubWindow):
@@ -130,7 +134,7 @@ class MainWind(QtWidgets.QMainWindow):
 
 
 class Ui_MainWindow(QMainWindow):
-    ColorMap = 'viridis'
+    ColorMap = "viridis"
     signals = []  # stores signals arrays
     graphRanges = (
         []
@@ -167,7 +171,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionCascade.setEnabled(False)
         self.actionTile.setEnabled(False)
         self.actionCloseAll.setEnabled(False)
-    
+
     def hideColors(self):
         self.actionViridis.setChecked(False)
         self.actionGray.setChecked(False)
@@ -226,7 +230,11 @@ class Ui_MainWindow(QMainWindow):
                     titlesList.append(widget.windowTitle())
                 else:
                     # We put an indicator on the spectrogram widgets to mark them
-                    tempStr = widget.windowTitle()[13:] if widget.windowTitle()[1] != "#" else widget.windowTitle()[12:]
+                    tempStr = (
+                        widget.windowTitle()[13:]
+                        if widget.windowTitle()[1] != "#"
+                        else widget.windowTitle()[12:]
+                    )
                     tempStr = tempStr + "x"
                     titlesList.append(tempStr)
             itr += 1
@@ -256,7 +264,7 @@ class Ui_MainWindow(QMainWindow):
                 )
                 os.remove(imgName)
             else:
-                fig, _ = self.spectroDraw(self.signals[windowIndx - 1],title)
+                fig, _ = self.spectroDraw(self.signals[windowIndx - 1], title)
                 imgName = f".fileName{str(windowIndx + 99)}.png"
                 fig.savefig(imgName)
                 pdf.image(
@@ -386,22 +394,26 @@ class Ui_MainWindow(QMainWindow):
         self.stop = True
 
     # Spectrogram
-    def updateSpectro(self,color,action):
+    def updateSpectro(self, color, action):
         self.hideColors()
         action.setChecked(True)
-        self.ColorMap=color
+        self.ColorMap = color
         title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
-        subWindowIndex,_ = self.titleIndex(title)
+        subWindowIndex, _ = self.titleIndex(title)
         mydialog = self.mdi.subWindowList()[self.windowIndx]
-        mydialog.figure, mydialog.canvas = self.spectroDraw(self.signals[subWindowIndex-1],title)
+        mydialog.figure, mydialog.canvas = self.spectroDraw(
+            self.signals[subWindowIndex - 1], title
+        )
         mydialog.setWidget(mydialog.canvas)
 
-    def spectroDraw(self, signal,title):
+    def spectroDraw(self, signal, title):
         # Draws the spectrogram of the signal
         figure = plt.figure()
         canvas = FigureCanvas(figure)
         figure.clear()
-        f, t, Sxx = sig.spectrogram(signal, fs=200 if title.find(".wav")==-1 else self.sampling_rate)
+        f, t, Sxx = sig.spectrogram(
+            signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
+        )
         ax = figure.add_subplot()
         img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=self.ColorMap)
         figure.colorbar(img, ax=ax)
@@ -411,13 +423,14 @@ class Ui_MainWindow(QMainWindow):
     def Spectrogram(self, signal, title):
         # Inserts the drawn spectrogram into a widget
         mydialog = MdiWind(self)
-        mydialog.figure, mydialog.canvas = self.spectroDraw(signal,title)
+        mydialog.figure, mydialog.canvas = self.spectroDraw(signal, title)
         icon = QtGui.QIcon()
         icon.addPixmap(
             QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         mydialog.setWindowIcon(icon)
-        mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
+        mydialog.setWindowTitle(
+            str(self.windowsCount) + "#Time-FFT: " + title)
         mydialog.setWidget(mydialog.canvas)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
@@ -433,8 +446,8 @@ class Ui_MainWindow(QMainWindow):
             self.Spectrogram(
                 self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
-    def checkWindow(self,subWindow):
-        if subWindow.windowTitle().find("Time-FFT")!=-1:
+    def checkWindow(self, subWindow):
+        if subWindow.windowTitle().find("Time-FFT") != -1:
             self.actionViridis.setEnabled(True)
             self.actionGray.setEnabled(True)
             self.actionWinter.setEnabled(True)
@@ -442,11 +455,11 @@ class Ui_MainWindow(QMainWindow):
             self.actionHSV.setEnabled(True)
             self.actionSummer.setEnabled(True)
 
-            itr=0
+            itr = 0
             for widget in ui.mdi.subWindowList():
                 if widget.windowTitle() == subWindow.windowTitle():
-                    self.windowIndx=itr
-                itr+=1
+                    self.windowIndx = itr
+                itr += 1
         else:
             self.actionViridis.setEnabled(False)
             self.actionGray.setEnabled(False)
@@ -460,26 +473,25 @@ class Ui_MainWindow(QMainWindow):
         ffti = []
         for i in range(50001):
             ffti.append(
-                self.fft[i] * math.cos((self.fftphase[i])) + self.fft[i] *
-                math.sin((self.fftphase[i])) * 1j
+                self.fft[i] * math.cos((self.fftphase[i]))
+                + self.fft[i] * math.sin((self.fftphase[i])) * 1j
             )
 
         s = scipy.fft.irfft(ffti)
         s = np.array(s)
 
-        itr=0
+        itr = 0
         for widget in ui.mdi.subWindowList():
-            if widget.windowTitle().find("modified")!=-1:
-                self.windowIndx=itr
-            itr+=1
+            if widget.windowTitle().find("modified") != -1 and widget.windowTitle().find('Time-FFT') == -1:
+                self.windowIndx = itr
+            itr += 1
         title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
-        subWindowIndex,_ = self.titleIndex(title)
+        subWindowIndex, _ = self.titleIndex(title)
         mydialog = self.mdi.subWindowList()[self.windowIndx]
         mydialog.graphWidget = self.graphDraw(s)
         mydialog.setWidget(mydialog.graphWidget)
-        self.signals[subWindowIndex-1]=s
+        self.signals[subWindowIndex - 1] = s
         write("test.wav", self.sampling_rate, s)
-
 
     def graphDraw(self, signal):
         # Plot the signal
@@ -628,7 +640,9 @@ class Ui_MainWindow(QMainWindow):
         self.centralwidget.setObjectName("centralwidget")
         self.mdi = QtWidgets.QMdiArea()
         MainWindow.setCentralWidget(self.mdi)
-        self.mdi.subWindowActivated.connect(lambda: self.checkWindow(self.mdi.activeSubWindow()))
+        self.mdi.subWindowActivated.connect(
+            lambda: self.checkWindow(self.mdi.activeSubWindow())
+        )
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 579, 21))
 
@@ -881,7 +895,7 @@ class Ui_MainWindow(QMainWindow):
             lambda: self.zoomOut(self.mdi.activeSubWindow())
         )
         self.actionPlay.triggered.connect(
-            lambda: self.play(self.mdi.activeSubWindow()))
+            lambda: playsound("test.wav"))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
             lambda: self.checkSpectro(self.mdi.activeSubWindow())
@@ -898,19 +912,29 @@ class Ui_MainWindow(QMainWindow):
         self.action0_5x.triggered.connect(lambda: self.setStep(0.5))
         self.action1x.triggered.connect(lambda: self.setStep(1))
         self.action2x.triggered.connect(lambda: self.setStep(2))
-        self.actionGray.triggered.connect(lambda: self.updateSpectro("gray",self.actionGray))
-        self.actionHSV.triggered.connect(lambda: self.updateSpectro("hsv",self.actionHSV))
-        self.actionWinter.triggered.connect(lambda: self.updateSpectro("winter",self.actionWinter))
-        self.actionSummer.triggered.connect(lambda: self.updateSpectro("summer",self.actionSummer))
-        self.actionTurbo.triggered.connect(lambda: self.updateSpectro("turbo",self.actionTurbo))
-        self.actionViridis.triggered.connect(lambda: self.updateSpectro("viridis",self.actionViridis))
+        self.actionGray.triggered.connect(
+            lambda: self.updateSpectro("gray", self.actionGray)
+        )
+        self.actionHSV.triggered.connect(
+            lambda: self.updateSpectro("hsv", self.actionHSV)
+        )
+        self.actionWinter.triggered.connect(
+            lambda: self.updateSpectro("winter", self.actionWinter)
+        )
+        self.actionSummer.triggered.connect(
+            lambda: self.updateSpectro("summer", self.actionSummer)
+        )
+        self.actionTurbo.triggered.connect(
+            lambda: self.updateSpectro("turbo", self.actionTurbo)
+        )
+        self.actionViridis.triggered.connect(
+            lambda: self.updateSpectro("viridis", self.actionViridis)
+        )
         self.actionCascade.triggered.connect(
             lambda: self.mdi.cascadeSubWindows())
         self.actionTile.triggered.connect(lambda: self.mdi.tileSubWindows())
         self.actionCloseAll.triggered.connect(
             lambda: self.mdi.closeAllSubWindows())
-        
-            
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
