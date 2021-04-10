@@ -122,6 +122,7 @@ class Ui_MainWindow(QMainWindow):
     stop = False  # Checks if stop is clicked to affect the play function
     closeMssgBox = False  # Checks if a message box should appear on close event
     speedFactor = 1
+    cmap = "viridis"
 
     def equalizer(self):
         self.activeWinds += 1
@@ -788,6 +789,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionTile.triggered.connect(lambda: self.mdi.tileSubWindows())
         self.actionCloseAll.triggered.connect(
             lambda: self.mdi.closeAllSubWindows())
+        
+            
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
