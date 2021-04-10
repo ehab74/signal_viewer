@@ -491,7 +491,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget = self.graphDraw(s)
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = s
-        write("test.wav", self.sampling_rate, s)
+        write("test.wav", self.sampling_rate, s.astype(np.float32))
 
     def graphDraw(self, signal):
         # Plot the signal
