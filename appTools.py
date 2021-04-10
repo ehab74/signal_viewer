@@ -86,10 +86,8 @@ class EQWindow(QWidget):
             str(float(self.sliders[ind].value())) + " dB")
 
     def valueChange(self, ind):
-        # print(2*(self.bands[ind]-int(len(ui.freqs)/10)),2*self.bands[ind]-1)
         if self.gainValues[ind] == 0:
             self.gainValues[ind] = 1
-        # print(self.sliders[ind].value())
         for i in range(
             2 * (self.bands[ind] - int(len(ui.freqs) / 10)
                  ), 2 * self.bands[ind] - 1
@@ -171,6 +169,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionCascade.setEnabled(False)
         self.actionTile.setEnabled(False)
         self.actionCloseAll.setEnabled(False)
+        self.actionPlaySound.setEnabled(False)
+        self.actionFFT.setEnabled(False)
 
     def hideColors(self):
         self.actionViridis.setChecked(False)
@@ -194,6 +194,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionCascade.setEnabled(True)
         self.actionPause.setEnabled(True)
         self.actionTile.setEnabled(True)
+        self.actionPlaySound.setEnabled(True)
+        self.actionFFT.setEnabled(True)
         self.actionCloseAll.setEnabled(True)
 
     def titleIndex(self, subWindowTitle):
@@ -719,6 +721,15 @@ class Ui_MainWindow(QMainWindow):
         )
         self.actionPlay.setIcon(icon2)
         self.actionPlay.setObjectName("actionPlay")
+        self.actionPlaySound = QtWidgets.QAction(MainWindow)
+        self.actionPlaySound.setEnabled(False)
+        icon11 = QtGui.QIcon()
+        icon11.addPixmap(
+            QtGui.QPixmap(
+                "icons/playSound.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        self.actionPlaySound.setIcon(icon11)
+        self.actionPlaySound.setObjectName("actionPlaySound")
         self.action0_5x = QtWidgets.QAction(MainWindow)
         self.action0_5x.setEnabled(False)
         icon20 = QtGui.QIcon()
@@ -798,6 +809,15 @@ class Ui_MainWindow(QMainWindow):
         self.actionSpectrogram.setIcon(icon8)
         self.actionSpectrogram.setObjectName("actionSpectrogram")
         self.actionSpectrogram.setEnabled(False)
+        self.actionFFT = QtWidgets.QAction(MainWindow)
+        icon10 = QtGui.QIcon()
+        icon10.addPixmap(
+            QtGui.QPixmap(
+                "icons/fft.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        self.actionFFT.setIcon(icon10)
+        self.actionFFT.setObjectName("actionFFT")
+        self.actionFFT.setEnabled(False)
         self.actionSave_as = QtWidgets.QAction(MainWindow)
         icon9 = QtGui.QIcon()
         icon9.addPixmap(
@@ -855,6 +875,9 @@ class Ui_MainWindow(QMainWindow):
         self.menuPlay_navigate.addAction(self.actionForward)
         self.menuPlay_navigate.addSeparator()
         self.menuPlay_navigate.addAction(self.actionPlay)
+        self.menuPlay_navigate.addSeparator()
+        self.menuPlay_navigate.addAction(self.actionPlaySound)
+        self.menuPlay_navigate.addSeparator()
         self.menuPlay_navigate.addAction(self.action0_5x)
         self.menuPlay_navigate.addAction(self.action1x)
         self.menuPlay_navigate.addAction(self.action2x)
@@ -866,7 +889,9 @@ class Ui_MainWindow(QMainWindow):
         self.menuPalette.addAction(self.actionViridis)
         self.menuPalette.addAction(self.actionTurbo)
         self.menuPalette.addAction(self.actionWinter)
+        self.menuInstruments_markers.addAction(self.actionFFT)
         self.menuInstruments_markers.addAction(self.actionSpectrogram)
+        self.menuInstruments_markers.addSeparator()
         self.menuInstruments_markers.addAction(self.menuPalette.menuAction())
         self.menuWindow.addAction(self.actionCascade)
         self.menuWindow.addAction(self.actionTile)
@@ -884,12 +909,14 @@ class Ui_MainWindow(QMainWindow):
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.actionBackward)
         self.toolBar.addAction(self.actionPlay)
+        self.toolBar.addAction(self.actionPlaySound)
         self.toolBar.addAction(self.actionForward)
         self.toolBar.addAction(self.actionPause)
         self.toolBar.addAction(self.action0_5x)
         self.toolBar.addAction(self.action1x)
         self.toolBar.addAction(self.action2x)
         self.toolBar.addSeparator()
+        self.toolBar.addAction(self.actionFFT)
         self.toolBar.addAction(self.actionSpectrogram)
 
         # Connect the UI buttons to the logic of the program
@@ -964,6 +991,9 @@ class Ui_MainWindow(QMainWindow):
         self.actionPlay.setText(_translate(
             "MainWindow", "Play signal (no sound)"))
         self.actionPlay.setShortcut(_translate("MainWindow", "F5"))
+        self.actionPlaySound.setText(_translate(
+            "MainWindow", "Play signal (with sound)"))
+        self.actionPlaySound.setShortcut(_translate("MainWindow", "F4"))
         self.actionPause.setText(_translate("MainWindow", "Stop playing"))
         self.actionPause.setStatusTip(
             _translate("MainWindow", "Stops acqusition"))
@@ -986,6 +1016,12 @@ class Ui_MainWindow(QMainWindow):
                 "MainWindow", "Spectrum of the visible part of the signal")
         )
         self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
+        self.actionFFT.setText(_translate("MainWindow", "Time FFT..."))
+        self.actionFFT.setStatusTip(
+            _translate(
+                "MainWindow", "Performs Time FFT")
+        )
+        self.actionFFT.setShortcut(_translate("MainWindow", "Ctrl+T"))
         self.actionSave_as.setText(_translate(
             "MainWindow", "Save signal as..."))
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
