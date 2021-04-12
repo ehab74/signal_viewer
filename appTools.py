@@ -94,8 +94,8 @@ class EQWindow(QWidget):
         ):
             ui.fft[i] *= self.gainValues[ind] / self.gainOld[ind]
             ui.ffti[i] = (
-                ui.fft[i]*math.cos(ui.fftphase[i])
-                + ui.fft[i]*math.sin(ui.fftphase[i]) * 1j
+                ui.fft[i] * math.cos(ui.fftphase[i])
+                + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
             )
 
         self.gainOld[ind] = self.gainValues[ind]
@@ -441,7 +441,7 @@ class Ui_MainWindow(QMainWindow):
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
-    def checkSpectro(self, subWindow):
+    def checkGraph(self, subWindow, type):
         # checks if the selected widget is a graph
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
@@ -449,8 +449,11 @@ class Ui_MainWindow(QMainWindow):
             self.graphRanges.append(0)
             self.signals.append(0)
             self.zoomRanges.append(0)
-            self.Spectrogram(
-                self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            if type == 's':
+                self.Spectrogram(
+                    self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            else:
+                self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     def checkWindow(self, subWindow):
         if subWindow.windowTitle().find("Time-FFT") != -1:
@@ -517,6 +520,26 @@ class Ui_MainWindow(QMainWindow):
 
         write("test.wav", self.sampling_rate, ffti.astype(np.float32))
 
+    def fftDraw(self, signal, title):
+        Amp = abs(scipy.fft.rfft(signal))
+        frequencies = np.fft.rfftfreq(len(Amp), (1.0 / self.sampling_rate))
+        mydialog = MdiWind(self)
+        mydialog.graphWidget = pg.PlotWidget()
+        self.subwindow = mydialog.graphWidget
+        mydialog.graphWidget.setBackground("w")
+        print(len(frequencies))
+        print(range(len(Amp)//2))
+        mydialog.graphWidget.plot(x=frequencies[range(len(Amp)//2)], y=Amp[range(len(Amp)//2)], pen="b")
+        mydialog.graphWidget.showGrid(x=True, y=True)
+        icon = QtGui.QIcon()
+        icon.addPixmap(
+            QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        mydialog.setWindowIcon(icon)
+        mydialog.setWindowTitle(str(self.windowsCount) + "#FFT: " + title)
+        mydialog.setWidget(mydialog.graphWidget)
+        self.mdi.addSubWindow(mydialog)
+        mydialog.show()
     def graphDraw(self, signal):
         # Plot the signal
         graphWidget = pg.PlotWidget()
@@ -937,10 +960,12 @@ class Ui_MainWindow(QMainWindow):
             lambda: self.zoomOut(self.mdi.activeSubWindow())
         )
         self.actionPlaySound.triggered.connect(lambda: playsound("test.wav"))
+        self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
-            lambda: self.checkSpectro(self.mdi.activeSubWindow())
+            lambda: self.checkGraph(self.mdi.activeSubWindow(), 's')
         )
+        self.actionFFT.triggered.connect(lambda: self.checkGraph(self.mdi.activeSubWindow(), 'f'))
         self.actionForward.triggered.connect(
             lambda: self.scrollRight(self.mdi.activeSubWindow())
         )
