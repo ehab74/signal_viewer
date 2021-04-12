@@ -93,6 +93,11 @@ class EQWindow(QWidget):
                  ), 2 * self.bands[ind] - 1
         ):
             ui.fft[i] *= self.gainValues[ind] / self.gainOld[ind]
+            ui.ffti[i] = (
+                ui.fft[i]*math.cos(ui.fftphase[i])
+                + ui.fft[i]*math.sin(ui.fftphase[i]) * 1j
+            )
+
         self.gainOld[ind] = self.gainValues[ind]
         ui.updateGraph()
 
@@ -472,14 +477,7 @@ class Ui_MainWindow(QMainWindow):
     # Graphs
     def updateGraph(self):
         ffti = []
-        for i in range(50001):
-            ffti.append(
-                self.fft[i] * math.cos((self.fftphase[i]))
-                + self.fft[i] * math.sin((self.fftphase[i])) * 1j
-            )
-
-        ffti = scipy.fft.irfft(ffti)
-        ffti = np.array(ffti)
+        ffti = np.array(scipy.fft.irfft(self.ffti))
 
         itr = 0
         for widget in self.mdi.subWindowList():
@@ -512,7 +510,8 @@ class Ui_MainWindow(QMainWindow):
             title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
             subWindowIndex, _ = self.titleIndex(title)
             mydialog = self.mdi.subWindowList()[self.windowIndx]
-            mydialog.figure, mydialog.canvas = self.spectroDraw(ffti, title)
+            mydialog.figure, mydialog.canvas = self.spectroDraw(
+                ffti, title)
 
             mydialog.setWidget(mydialog.canvas)
 
@@ -607,10 +606,17 @@ class Ui_MainWindow(QMainWindow):
         frequency = []
         self.fftphase = np.angle(scipy.fft.rfft(samples))
         self.fft = abs(scipy.fft.rfft(samples))
+        self.ffti = scipy.fft.rfft(samples)
         self.freqs = np.fft.rfftfreq(len(self.fft), (1.0 / self.sampling_rate))
 
         self.Graph(samples, signal_label)
-        ffti = []
+
+        # self.ffti = []
+        # for i in range(len(self.fft)):
+        #     self.ffti.append(
+        #         self.fft[i] * math.cos((self.fftphase[i]))
+        #         + self.fft[i] * math.sin((self.fftphase[i])) * 1j
+        #     )
 
         self.signals.append(samples)
         self.graphRanges.append(0)
