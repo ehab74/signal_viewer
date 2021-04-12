@@ -150,6 +150,7 @@ class Ui_MainWindow(QMainWindow):
     closeMssgBox = False  # Checks if a message box should appear on close event
     speedFactor = 1
     cmap = "viridis"
+    sampling_rate = 200
 
     def equalizer(self):
         self.activeWinds += 1
@@ -527,9 +528,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget = pg.PlotWidget()
         self.subwindow = mydialog.graphWidget
         mydialog.graphWidget.setBackground("w")
-        print(len(frequencies))
-        print(range(len(Amp)//2))
-        mydialog.graphWidget.plot(x=frequencies[range(len(Amp)//2)], y=Amp[range(len(Amp)//2)], pen="b")
+        mydialog.graphWidget.plot(x=frequencies[range(len(Amp) // 2)], y=Amp[range(len(Amp) // 2)], pen="b")
         mydialog.graphWidget.showGrid(x=True, y=True)
         icon = QtGui.QIcon()
         icon.addPixmap(
@@ -540,6 +539,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWidget(mydialog.graphWidget)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
+
     def graphDraw(self, signal):
         # Plot the signal
         graphWidget = pg.PlotWidget()
