@@ -930,7 +930,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.triggered.connect(
             lambda: self.zoomOut(self.mdi.activeSubWindow())
         )
-        self.actionPlay.triggered.connect(lambda: playsound("test.wav"))
+        self.actionPlaySound.triggered.connect(lambda: playsound("test.wav"))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
             lambda: self.checkSpectro(self.mdi.activeSubWindow())
