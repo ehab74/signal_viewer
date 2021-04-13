@@ -148,6 +148,7 @@ class Ui_MainWindow(QMainWindow):
     activeWinds = 0  # Stores the number of active windows
     stop = False  # Checks if stop is clicked to affect the play function
     closeMssgBox = False  # Checks if a message box should appear on close event
+    plays = False
     speedFactor = 1
     cmap = "viridis"
     sampling_rate = 200
@@ -220,7 +221,13 @@ class Ui_MainWindow(QMainWindow):
             else:
                 subWindowIndex = int(subWindowTitle[12])
             return (subWindowIndex, False)
-
+        
+    def getWindow(self,toFind):
+        itr=0
+        for widget in self.mdi.subWindowList():
+            if widget.windowTitle().startswith(toFind):
+                return(widget)
+            itr += 1
     # PDF
     def generatePDF(self, widget_list, filename):
         # prints all opened signals and their spectrograms (if required)
@@ -301,12 +308,28 @@ class Ui_MainWindow(QMainWindow):
     def scrollRight(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
+            if subWindow.windowTitle().find(".wav modified")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex-1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
+                self.graphRanges[subWindowIndex - 2] += 100
+            elif subWindow.windowTitle().find(".wav")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex+1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
+                self.graphRanges[subWindowIndex] += 100
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
             self.graphRanges[subWindowIndex - 1] += 100
 
     def scrollLeft(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
+            if subWindow.windowTitle().find(".wav modified")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex-1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
+                self.graphRanges[subWindowIndex - 2] -= 100
+            elif subWindow.windowTitle().find(".wav")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex+1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
+                self.graphRanges[subWindowIndex] -= 100
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
             self.graphRanges[subWindowIndex - 1] -= 100
 
@@ -368,6 +391,7 @@ class Ui_MainWindow(QMainWindow):
 
     def play(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
+        self.plays=True
         self.zoomRanges[subWindowIndex - 1] = (
             subWindow.graphWidget.viewRange()[0][1]
             - subWindow.graphWidget.viewRange()[0][0]
@@ -400,6 +424,7 @@ class Ui_MainWindow(QMainWindow):
 
     def stopClicked(self):
         self.stop = True
+        self.plays=False
 
     # Spectrogram
     def updateSpectro(self, color, action):
@@ -700,6 +725,8 @@ class Ui_MainWindow(QMainWindow):
         self.menus.setObjectName("menus")
         self.menuEdit = QtWidgets.QMenu(self.menubar)
         self.menuEdit.setObjectName("menuEdit")
+        self.menuSignalTools = QtWidgets.QMenu(self.menubar)
+        self.menuSignalTools.setObjectName("menuSignalTools")
         self.menuPlay_navigate = QtWidgets.QMenu(self.menubar)
         self.menuPlay_navigate.setObjectName("menuPlay_navigate")
         self.menuInstruments_markers = QtWidgets.QMenu(self.menubar)
@@ -918,7 +945,7 @@ class Ui_MainWindow(QMainWindow):
         self.menuPalette.addAction(self.actionViridis)
         self.menuPalette.addAction(self.actionTurbo)
         self.menuPalette.addAction(self.actionWinter)
-        self.menuInstruments_markers.addAction(self.actionFFT)
+        self.menuSignalTools.addAction(self.actionFFT)
         self.menuInstruments_markers.addAction(self.actionSpectrogram)
         self.menuInstruments_markers.addSeparator()
         self.menuInstruments_markers.addAction(self.menuPalette.menuAction())
@@ -928,6 +955,7 @@ class Ui_MainWindow(QMainWindow):
         self.menubar.addAction(self.menus.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
         self.menubar.addAction(self.menuPlay_navigate.menuAction())
+        self.menubar.addAction(self.menuSignalTools.menuAction())
         self.menubar.addAction(self.menuInstruments_markers.menuAction())
         self.menubar.addAction(self.menuWindow.menuAction())
         self.toolBar.addAction(self.actionOpen)
@@ -1009,6 +1037,7 @@ class Ui_MainWindow(QMainWindow):
             "MainWindow", "Creates a new document"))
         self.menus.setTitle(_translate("MainWindow", "File"))
         self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
+        self.menuSignalTools.setTitle(_translate("MainWindow", "Signal Tools"))
         self.menuPlay_navigate.setTitle(
             _translate("MainWindow", "Play && navigate"))
         self.menuInstruments_markers.setTitle(
@@ -1047,12 +1076,12 @@ class Ui_MainWindow(QMainWindow):
                 "MainWindow", "Spectrum of the visible part of the signal")
         )
         self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
-        self.actionFFT.setText(_translate("MainWindow", "Time FFT..."))
+        self.actionFFT.setText(_translate("MainWindow", "FFT spectrum analysis"))
         self.actionFFT.setStatusTip(
             _translate(
-                "MainWindow", "Performs Time FFT")
+                "MainWindow", "Spectrum of the visible part of the signal")
         )
-        self.actionFFT.setShortcut(_translate("MainWindow", "Ctrl+T"))
+        self.actionFFT.setShortcut(_translate("MainWindow", "Ctrl+F"))
         self.actionSave_as.setText(_translate(
             "MainWindow", "Save signal as..."))
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
