@@ -36,7 +36,6 @@ class EQWindow(QWidget):
         self.gainLabels = []
         self.bands = []
         self.gainValues = []
-        self.gainOld = [1] * 10
         grid = QGridLayout()
         temp = len(ui.freqs) / 10
         for i in range(10):
@@ -60,8 +59,7 @@ class EQWindow(QWidget):
         self.sliders[ind].setTickPosition(QSlider.TicksBothSides)
         self.sliders[ind].setTickInterval(1)
         self.sliders[ind].setSingleStep(1)
-        self.sliders[ind].valueChanged.connect(lambda: self.valueChanging(ind))
-        self.sliders[ind].sliderReleased.connect(lambda: self.valueChange(ind))
+        self.sliders[ind].valueChanged.connect(lambda: self.valueChange(ind))
         self.bands[ind] = txt
         freq = QLabel()
         freq.setText(str(txt) + " Hz")
@@ -75,28 +73,19 @@ class EQWindow(QWidget):
 
         return groupBox
 
-    def valueChanging(self, ind):
-        if self.sliders[ind].value() > 0:
-            self.gainValues[ind] = self.sliders[ind].value()
-        else:
-            self.gainValues[ind] = sys.float_info.min
+    def valueChange(self, ind):
+        self.gainValues[ind] = self.sliders[ind].value()
         self.gainLabels[ind].setText(
             str(float(self.sliders[ind].value())))
-
-    def valueChange(self, ind):
-        if self.gainValues[ind] == 0:
-            self.gainValues[ind] = sys.float_info.min
         for i in range(
             2 * (self.bands[ind] - int(len(ui.freqs) / 10)
                  ), 2 * self.bands[ind] - 1
         ):
-            ui.fft[i] *= self.gainValues[ind] / self.gainOld[ind]
+            ui.fft[i] = ui.copyFFT[i] * self.gainValues[ind]
             ui.ffti[i] = (
                 ui.fft[i] * math.cos(ui.fftphase[i])
                 + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
             )
-
-        self.gainOld[ind] = self.gainValues[ind]
         ui.updateGraph()
 
 
@@ -668,6 +657,7 @@ class Ui_MainWindow(QMainWindow):
         frequency = []
         self.fftphase = np.angle(scipy.fft.rfft(samples))
         self.fft = abs(scipy.fft.rfft(samples))
+        self.copyFFT = abs(scipy.fft.rfft(samples))
         self.ffti = scipy.fft.rfft(samples)
         self.freqs = np.fft.rfftfreq(len(self.fft), (1.0 / self.sampling_rate))
 
@@ -1084,11 +1074,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.setStatusTip(
             _translate("MainWindow", "Show previous zoom"))
         self.actionZoomOut.setShortcut(_translate("MainWindow", "Ctrl+Down"))
-        self.actionSpectrogram.setText(_translate("MainWindow", "Spectrogram"))
-        self.actionSpectrogram.setStatusTip(
-            _translate(
-                "MainWindow", "Spectrum of the visible part of the signal")
-        )
+        self.actionSpectrogram.setText(_translate("MainWindow", "Spectrogram..."))
         self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
         self.actionFFT.setText(_translate("MainWindow", "FFT spectrum analysis"))
         self.actionFFT.setStatusTip(
@@ -1101,9 +1087,17 @@ class Ui_MainWindow(QMainWindow):
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
         self.actionExit.setShortcut(_translate("MainWindow", "Alt+F4"))
+        self.actionExit.setStatusTip(
+            _translate("MainWindow", "Quits SIGVIEW"))
         self.actionCascade.setText(_translate("MainWindow", "Cascade"))
+        self.actionCascade.setStatusTip(
+            _translate("MainWindow", "Cascades open windows"))
+        self.actionTile.setStatusTip(
+            _translate("MainWindow", "Tiles open windows"))
         self.actionTile.setText(_translate("MainWindow", "Tile"))
         self.actionCloseAll.setText(_translate("MainWindow", "Close All"))
+        self.actionCloseAll.setStatusTip(
+            _translate("MainWindow", "Closes all open windows"))
         self.action0_5x.setText(_translate("MainWindow", "Slower"))
         self.action1x.setText(_translate("MainWindow", "Normal"))
         self.action2x.setText(_translate("MainWindow", "Faster"))
