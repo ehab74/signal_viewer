@@ -472,6 +472,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog = MdiWind(self)
         mydialog.figure, mydialog.canvas = self.spectroDraw(signal, title)
         icon = QtGui.QIcon()
+        
         icon.addPixmap(
             QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
@@ -582,7 +583,6 @@ class Ui_MainWindow(QMainWindow):
     def graphDraw(self, signal):
         # Plot the signal
         graphWidget = pg.PlotWidget()
-        self.subwindow = graphWidget
         graphWidget.setBackground("w")
         graphWidget.plot(signal, pen="b")
         graphWidget.showGrid(x=True, y=True)
@@ -650,7 +650,7 @@ class Ui_MainWindow(QMainWindow):
         self.zoomRanges.append(400)
         self.graphWidget = pg.PlotWidget()
         self.Graph(array, signal_label[0:-4])
-
+            
     def read_wav(self, filename):
         signal_label = os.path.basename(filename)
 
