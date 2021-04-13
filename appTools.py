@@ -64,7 +64,7 @@ class EQWindow(QWidget):
         freq = QLabel()
         freq.setText(str(txt) + " Hz")
         self.gainLabels[ind] = QLabel()
-        self.gainLabels[ind].setText("0.0")
+        self.gainLabels[ind].setText("1.0")
         vbox = QVBoxLayout()
         vbox.addWidget(self.sliders[ind], alignment=Qt.AlignHCenter)
         vbox.addWidget(freq, alignment=Qt.AlignCenter)
@@ -87,6 +87,7 @@ class EQWindow(QWidget):
                 + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
             )
         ui.updateGraph()
+        ui.updateSpectro()
 
 
 class MdiWind(QtWidgets.QMdiSubWindow):
@@ -430,7 +431,28 @@ class Ui_MainWindow(QMainWindow):
         self.plays=False
 
     # Spectrogram
-    def updateSpectro(self, color, action):
+    def updateSpectro(self):
+        ffti = []
+        ffti = np.array(scipy.fft.irfft(self.ffti))
+        flag = False
+        itr = 0
+        for widget in self.mdi.subWindowList():
+            if (
+                widget.windowTitle().find("modified") != -1
+                and widget.windowTitle().find("Time-FFT") != -1
+            ):
+                self.windowIndx = itr
+                flag = True
+            itr += 1
+        if flag:
+            title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
+            subWindowIndex, _ = self.titleIndex(title)
+            mydialog = self.mdi.subWindowList()[self.windowIndx]
+            mydialog.figure, mydialog.canvas = self.spectroDraw(
+                ffti, title)
+            mydialog.setWidget(mydialog.canvas)
+        
+    def colorSpectro(self, color, action):
         self.hideColors()
         action.setChecked(True)
         self.ColorMap = color
@@ -529,25 +551,6 @@ class Ui_MainWindow(QMainWindow):
         )
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = ffti
-        flag = False
-        itr = 0
-        for widget in self.mdi.subWindowList():
-            if (
-                widget.windowTitle().find("modified") != -1
-                and widget.windowTitle().find("Time-FFT") != -1
-            ):
-                self.windowIndx = itr
-                flag = True
-            itr += 1
-        if flag:
-            title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
-            subWindowIndex, _ = self.titleIndex(title)
-            mydialog = self.mdi.subWindowList()[self.windowIndx]
-            mydialog.figure, mydialog.canvas = self.spectroDraw(
-                ffti, title)
-
-            mydialog.setWidget(mydialog.canvas)
-
         write("test.wav", self.sampling_rate, ffti.astype(np.float32))
 
     def fftDraw(self, signal, title):
@@ -1011,22 +1014,22 @@ class Ui_MainWindow(QMainWindow):
         self.action1x.triggered.connect(lambda: self.setStep(1))
         self.action2x.triggered.connect(lambda: self.setStep(2))
         self.actionGray.triggered.connect(
-            lambda: self.updateSpectro("gray", self.actionGray)
+            lambda: self.colorSpectro("gray", self.actionGray)
         )
         self.actionHSV.triggered.connect(
-            lambda: self.updateSpectro("hsv", self.actionHSV)
+            lambda: self.colorSpectro("hsv", self.actionHSV)
         )
         self.actionWinter.triggered.connect(
-            lambda: self.updateSpectro("winter", self.actionWinter)
+            lambda: self.colorSpectro("winter", self.actionWinter)
         )
         self.actionSummer.triggered.connect(
-            lambda: self.updateSpectro("summer", self.actionSummer)
+            lambda: self.colorSpectro("summer", self.actionSummer)
         )
         self.actionTurbo.triggered.connect(
-            lambda: self.updateSpectro("turbo", self.actionTurbo)
+            lambda: self.colorSpectro("turbo", self.actionTurbo)
         )
         self.actionViridis.triggered.connect(
-            lambda: self.updateSpectro("viridis", self.actionViridis)
+            lambda: self.colorSpectro("viridis", self.actionViridis)
         )
         self.actionCascade.triggered.connect(
             lambda: self.mdi.cascadeSubWindows())
