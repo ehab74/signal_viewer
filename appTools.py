@@ -54,9 +54,9 @@ class EQWindow(QWidget):
     def createExampleGroup(self, txt, ind):
         groupBox = QGroupBox()
 
-        self.sliders[ind].setMaximum(10)
-        self.sliders[ind].setMinimum(-10)
-        self.sliders[ind].setValue(0)
+        self.sliders[ind].setMaximum(5)
+        self.sliders[ind].setMinimum(0)
+        self.sliders[ind].setValue(1)
         self.sliders[ind].setTickPosition(QSlider.TicksBothSides)
         self.sliders[ind].setTickInterval(1)
         self.sliders[ind].setSingleStep(1)
@@ -66,7 +66,7 @@ class EQWindow(QWidget):
         freq = QLabel()
         freq.setText(str(txt) + " Hz")
         self.gainLabels[ind] = QLabel()
-        self.gainLabels[ind].setText("0.0 dB")
+        self.gainLabels[ind].setText("0.0")
         vbox = QVBoxLayout()
         vbox.addWidget(self.sliders[ind], alignment=Qt.AlignHCenter)
         vbox.addWidget(freq, alignment=Qt.AlignCenter)
@@ -78,16 +78,14 @@ class EQWindow(QWidget):
     def valueChanging(self, ind):
         if self.sliders[ind].value() > 0:
             self.gainValues[ind] = self.sliders[ind].value()
-        elif self.sliders[ind].value() < 0:
-            self.gainValues[ind] = float(1 / (self.sliders[ind].value() * -1))
         else:
-            self.gainValues[ind] = 1
+            self.gainValues[ind] = sys.float_info.min
         self.gainLabels[ind].setText(
-            str(float(self.sliders[ind].value())) + " dB")
+            str(float(self.sliders[ind].value())))
 
     def valueChange(self, ind):
         if self.gainValues[ind] == 0:
-            self.gainValues[ind] = 1
+            self.gainValues[ind] = sys.float_info.min
         for i in range(
             2 * (self.bands[ind] - int(len(ui.freqs) / 10)
                  ), 2 * self.bands[ind] - 1
@@ -222,12 +220,52 @@ class Ui_MainWindow(QMainWindow):
                 subWindowIndex = int(subWindowTitle[12])
             return (subWindowIndex, False)
         
-    def getWindow(self,toFind):
+    def getWindow(self, windowTitle, index):
         itr=0
-        for widget in self.mdi.subWindowList():
-            if widget.windowTitle().startswith(toFind):
-                return(widget)
-            itr += 1
+        if windowTitle.find('.wav') != -1:
+            for widget in self.mdi.subWindowList():
+                if widget.windowTitle().startswith(f'{index}'):
+                    if windowTitle.find('modified')!=-1:
+                        return(self.mdi.subWindowList()[itr-1], widget, True )
+                    else:
+                        return(widget, self.mdi.subWindowList()[itr+1], True)
+                itr += 1
+        else:
+            for widget in self.mdi.subWindowList():
+                if widget.windowTitle().startswith(f'{index}'):
+                    return(widget, 0, False)
+    
+    def doubleZoom(self, subwindow, type):
+        subWindowIndex, graphFlag = self.titleIndex(subwindow.windowTitle())
+        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), subWindowIndex)
+        if graphFlag:
+            if type==1:
+                self.zoomIn(OGWindow, subWindowIndex)
+            else:
+                self.zoomOut(OGWindow, subWindowIndex)
+            if flag:
+                if type==1:
+                    self.zoomIn(ModWindow, subWindowIndex)
+                else:
+                    self.zoomOut(ModWindow, subWindowIndex)
+
+    def doubleScroll(self, subwindow, type):
+        subWindowIndex, graphFlag = self.titleIndex(subwindow.windowTitle())
+        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), subWindowIndex)
+        if graphFlag:
+            if type==1:
+                self.scrollLeft(OGWindow, subWindowIndex)
+            else:
+                self.scrollRight(OGWindow, subWindowIndex)
+            if flag:
+                if type==1:
+                    self.scrollLeft(ModWindow, subWindowIndex)
+                else:
+                    self.scrollRight(ModWindow, subWindowIndex)
+
+
+            
+
     # PDF
     def generatePDF(self, widget_list, filename):
         # prints all opened signals and their spectrograms (if required)
@@ -305,85 +343,61 @@ class Ui_MainWindow(QMainWindow):
             self.generatePDF(widget_list, filename)
 
     # Scroll/Zoom
-    def scrollRight(self, subWindow):
-        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
-        if graphFlag:
-            if subWindow.windowTitle().find(".wav modified")!=-1:
-                cloneWindow = self.getWindow(str(subWindowIndex-1))
-                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
-                self.graphRanges[subWindowIndex - 2] += 100
-            elif subWindow.windowTitle().find(".wav")!=-1:
-                cloneWindow = self.getWindow(str(subWindowIndex+1))
-                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
-                self.graphRanges[subWindowIndex] += 100
-            subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
-            self.graphRanges[subWindowIndex - 1] += 100
+    def scrollRight(self, subWindow, subWindowIndex):
+        subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
+        self.graphRanges[subWindowIndex - 1] += 100
 
-    def scrollLeft(self, subWindow):
-        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
-        if graphFlag:
-            if subWindow.windowTitle().find(".wav modified")!=-1:
-                cloneWindow = self.getWindow(str(subWindowIndex-1))
-                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-                self.graphRanges[subWindowIndex - 2] -= 100
-            elif subWindow.windowTitle().find(".wav")!=-1:
-                cloneWindow = self.getWindow(str(subWindowIndex+1))
-                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-                self.graphRanges[subWindowIndex] -= 100
-            subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-            self.graphRanges[subWindowIndex - 1] -= 100
+    def scrollLeft(self, subWindow, subWindowIndex):
+        subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
+        self.graphRanges[subWindowIndex - 1] += -100
 
-    def zoomIn(self, subWindow):
-        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
-        if graphFlag:
-            self.zoomRanges[subWindowIndex - 1] = (
-                subWindow.graphWidget.viewRange()[0][1]
-                - subWindow.graphWidget.viewRange()[0][0]
-            )
-            zoomRange = self.zoomRanges[subWindowIndex - 1]
 
-            if self.zoomRanges[subWindowIndex - 1] > 50:
-                subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
-                self.zoomRanges[subWindowIndex - 1] *= 0.5
-                self.graphRanges[
-                    subWindowIndex - 1
-                ] = subWindow.graphWidget.viewRange()[0][0]
+    def zoomIn(self, subWindow, subWindowIndex):
+        self.zoomRanges[subWindowIndex - 1] = (
+            subWindow.graphWidget.viewRange()[0][1]
+            - subWindow.graphWidget.viewRange()[0][0]
+        )
+        zoomRange = self.zoomRanges[subWindowIndex - 1]
 
-                # Disables the zoom in button when the user reaches a certain range
-                if self.zoomRanges[subWindowIndex - 1] <= 50:
-                    self.actionZoomIn.setEnabled(False)
-                if self.zoomRanges[subWindowIndex - 1] < len(
-                    self.signals[subWindowIndex - 1]
-                ):
-                    # Enables the zoom out button when the user reaches a certain zoom-in-range
-                    self.actionZoomOut.setEnabled(True)
-            if self.plays and zoomRange >= len(self.signals[subWindowIndex - 1]):
-                self.play(subWindow)
+        if self.zoomRanges[subWindowIndex - 1] > 50:
+            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
+            self.zoomRanges[subWindowIndex - 1] *= 0.5
+            self.graphRanges[
+                subWindowIndex - 1
+            ] = subWindow.graphWidget.viewRange()[0][0]
 
-    def zoomOut(self, subWindow):
-        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
-
-        if graphFlag:
-            self.zoomRanges[subWindowIndex - 1] = (
-                subWindow.graphWidget.viewRange()[0][1]
-                - subWindow.graphWidget.viewRange()[0][0]
-            )
-
+            # Disables the zoom in button when the user reaches a certain range
+            if self.zoomRanges[subWindowIndex - 1] <= 50:
+                self.actionZoomIn.setEnabled(False)
             if self.zoomRanges[subWindowIndex - 1] < len(
                 self.signals[subWindowIndex - 1]
             ):
-                subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
-                self.zoomRanges[subWindowIndex - 1] *= 2
-                self.graphRanges[
-                    subWindowIndex - 1
-                ] = subWindow.graphWidget.viewRange()[0][0]
+                # Enables the zoom out button when the user reaches a certain zoom-in-range
+                self.actionZoomOut.setEnabled(True)
+        if self.plays and zoomRange >= len(self.signals[subWindowIndex - 1]):
+            self.play(subWindow)
 
-                if self.zoomRanges[subWindowIndex - 1] >= len(
-                    self.signals[subWindowIndex - 1]
-                ):
-                    self.actionZoomOut.setEnabled(False)
-                if self.zoomRanges[subWindowIndex - 1] > 50:
-                    self.actionZoomIn.setEnabled(True)
+    def zoomOut(self, subWindow, subWindowIndex):
+        self.zoomRanges[subWindowIndex - 1] = (
+            subWindow.graphWidget.viewRange()[0][1]
+            - subWindow.graphWidget.viewRange()[0][0]
+        )
+
+        if self.zoomRanges[subWindowIndex - 1] < len(
+            self.signals[subWindowIndex - 1]
+        ):
+            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
+            self.zoomRanges[subWindowIndex - 1] *= 2
+            self.graphRanges[
+                subWindowIndex - 1
+            ] = subWindow.graphWidget.viewRange()[0][0]
+
+            if self.zoomRanges[subWindowIndex - 1] >= len(
+                self.signals[subWindowIndex - 1]
+            ):
+                self.actionZoomOut.setEnabled(False)
+            if self.zoomRanges[subWindowIndex - 1] > 50:
+                self.actionZoomIn.setEnabled(True)
 
     # Play/Pause
     def setStep(self, value):
@@ -982,10 +996,10 @@ class Ui_MainWindow(QMainWindow):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.actionOpen.triggered.connect(lambda: self.browsefiles())
         self.actionZoomIn.triggered.connect(
-            lambda: self.zoomIn(self.mdi.activeSubWindow())
+            lambda: self.doubleZoom(self.mdi.activeSubWindow(),1)
         )
         self.actionZoomOut.triggered.connect(
-            lambda: self.zoomOut(self.mdi.activeSubWindow())
+            lambda: self.doubleZoom(self.mdi.activeSubWindow(),-1)
         )
         self.actionPlaySound.triggered.connect(lambda: playsound("test.wav"))
         self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
@@ -995,10 +1009,10 @@ class Ui_MainWindow(QMainWindow):
         )
         self.actionFFT.triggered.connect(lambda: self.checkGraph(self.mdi.activeSubWindow(), 'f'))
         self.actionForward.triggered.connect(
-            lambda: self.scrollRight(self.mdi.activeSubWindow())
+            lambda: self.doubleScroll(self.mdi.activeSubWindow(), -1)
         )
         self.actionBackward.triggered.connect(
-            lambda: self.scrollLeft(self.mdi.activeSubWindow())
+            lambda: self.doubleScroll(self.mdi.activeSubWindow(), 1)
         )
         self.actionSave_as.triggered.connect(
             lambda: self.printPDF(self.mdi.subWindowList())
