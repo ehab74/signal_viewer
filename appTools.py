@@ -94,8 +94,8 @@ class EQWindow(QWidget):
         ):
             ui.fft[i] *= self.gainValues[ind] / self.gainOld[ind]
             ui.ffti[i] = (
-                ui.fft[i]*math.cos(ui.fftphase[i])
-                + ui.fft[i]*math.sin(ui.fftphase[i]) * 1j
+                ui.fft[i] * math.cos(ui.fftphase[i])
+                + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
             )
 
         self.gainOld[ind] = self.gainValues[ind]
@@ -148,8 +148,10 @@ class Ui_MainWindow(QMainWindow):
     activeWinds = 0  # Stores the number of active windows
     stop = False  # Checks if stop is clicked to affect the play function
     closeMssgBox = False  # Checks if a message box should appear on close event
+    plays = False
     speedFactor = 1
     cmap = "viridis"
+    sampling_rate = 200
 
     def equalizer(self):
         self.activeWinds += 1
@@ -219,7 +221,13 @@ class Ui_MainWindow(QMainWindow):
             else:
                 subWindowIndex = int(subWindowTitle[12])
             return (subWindowIndex, False)
-
+        
+    def getWindow(self,toFind):
+        itr=0
+        for widget in self.mdi.subWindowList():
+            if widget.windowTitle().startswith(toFind):
+                return(widget)
+            itr += 1
     # PDF
     def generatePDF(self, widget_list, filename):
         # prints all opened signals and their spectrograms (if required)
@@ -300,12 +308,28 @@ class Ui_MainWindow(QMainWindow):
     def scrollRight(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
+            if subWindow.windowTitle().find(".wav modified")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex-1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
+                self.graphRanges[subWindowIndex - 2] += 100
+            elif subWindow.windowTitle().find(".wav")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex+1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
+                self.graphRanges[subWindowIndex] += 100
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
             self.graphRanges[subWindowIndex - 1] += 100
 
     def scrollLeft(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
+            if subWindow.windowTitle().find(".wav modified")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex-1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
+                self.graphRanges[subWindowIndex - 2] -= 100
+            elif subWindow.windowTitle().find(".wav")!=-1:
+                cloneWindow = self.getWindow(str(subWindowIndex+1))
+                cloneWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
+                self.graphRanges[subWindowIndex] -= 100
             subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
             self.graphRanges[subWindowIndex - 1] -= 100
 
@@ -367,6 +391,7 @@ class Ui_MainWindow(QMainWindow):
 
     def play(self, subWindow):
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
+        self.plays=True
         self.zoomRanges[subWindowIndex - 1] = (
             subWindow.graphWidget.viewRange()[0][1]
             - subWindow.graphWidget.viewRange()[0][0]
@@ -399,6 +424,7 @@ class Ui_MainWindow(QMainWindow):
 
     def stopClicked(self):
         self.stop = True
+        self.plays=False
 
     # Spectrogram
     def updateSpectro(self, color, action):
@@ -442,7 +468,7 @@ class Ui_MainWindow(QMainWindow):
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
-    def checkSpectro(self, subWindow):
+    def checkGraph(self, subWindow, type):
         # checks if the selected widget is a graph
         subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
         if graphFlag:
@@ -450,8 +476,11 @@ class Ui_MainWindow(QMainWindow):
             self.graphRanges.append(0)
             self.signals.append(0)
             self.zoomRanges.append(0)
-            self.Spectrogram(
-                self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            if type == 's':
+                self.Spectrogram(
+                    self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            else:
+                self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     def checkWindow(self, subWindow):
         if subWindow.windowTitle().find("Time-FFT") != -1:
@@ -517,6 +546,25 @@ class Ui_MainWindow(QMainWindow):
             mydialog.setWidget(mydialog.canvas)
 
         write("test.wav", self.sampling_rate, ffti.astype(np.float32))
+
+    def fftDraw(self, signal, title):
+        Amp = abs(scipy.fft.rfft(signal))
+        frequencies = np.fft.rfftfreq(len(Amp), (1.0 / self.sampling_rate))
+        mydialog = MdiWind(self)
+        mydialog.graphWidget = pg.PlotWidget()
+        self.subwindow = mydialog.graphWidget
+        mydialog.graphWidget.setBackground("w")
+        mydialog.graphWidget.plot(x=frequencies[range(len(Amp) // 2)], y=Amp[range(len(Amp) // 2)], pen="b")
+        mydialog.graphWidget.showGrid(x=True, y=True)
+        icon = QtGui.QIcon()
+        icon.addPixmap(
+            QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        mydialog.setWindowIcon(icon)
+        mydialog.setWindowTitle(str(self.windowsCount) + "#FFT: " + title)
+        mydialog.setWidget(mydialog.graphWidget)
+        self.mdi.addSubWindow(mydialog)
+        mydialog.show()
 
     def graphDraw(self, signal):
         # Plot the signal
@@ -677,6 +725,8 @@ class Ui_MainWindow(QMainWindow):
         self.menus.setObjectName("menus")
         self.menuEdit = QtWidgets.QMenu(self.menubar)
         self.menuEdit.setObjectName("menuEdit")
+        self.menuSignalTools = QtWidgets.QMenu(self.menubar)
+        self.menuSignalTools.setObjectName("menuSignalTools")
         self.menuPlay_navigate = QtWidgets.QMenu(self.menubar)
         self.menuPlay_navigate.setObjectName("menuPlay_navigate")
         self.menuInstruments_markers = QtWidgets.QMenu(self.menubar)
@@ -895,7 +945,7 @@ class Ui_MainWindow(QMainWindow):
         self.menuPalette.addAction(self.actionViridis)
         self.menuPalette.addAction(self.actionTurbo)
         self.menuPalette.addAction(self.actionWinter)
-        self.menuInstruments_markers.addAction(self.actionFFT)
+        self.menuSignalTools.addAction(self.actionFFT)
         self.menuInstruments_markers.addAction(self.actionSpectrogram)
         self.menuInstruments_markers.addSeparator()
         self.menuInstruments_markers.addAction(self.menuPalette.menuAction())
@@ -905,6 +955,7 @@ class Ui_MainWindow(QMainWindow):
         self.menubar.addAction(self.menus.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
         self.menubar.addAction(self.menuPlay_navigate.menuAction())
+        self.menubar.addAction(self.menuSignalTools.menuAction())
         self.menubar.addAction(self.menuInstruments_markers.menuAction())
         self.menubar.addAction(self.menuWindow.menuAction())
         self.toolBar.addAction(self.actionOpen)
@@ -936,11 +987,13 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.triggered.connect(
             lambda: self.zoomOut(self.mdi.activeSubWindow())
         )
-        self.actionPlay.triggered.connect(lambda: playsound("test.wav"))
+        self.actionPlaySound.triggered.connect(lambda: playsound("test.wav"))
+        self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
-            lambda: self.checkSpectro(self.mdi.activeSubWindow())
+            lambda: self.checkGraph(self.mdi.activeSubWindow(), 's')
         )
+        self.actionFFT.triggered.connect(lambda: self.checkGraph(self.mdi.activeSubWindow(), 'f'))
         self.actionForward.triggered.connect(
             lambda: self.scrollRight(self.mdi.activeSubWindow())
         )
@@ -984,6 +1037,7 @@ class Ui_MainWindow(QMainWindow):
             "MainWindow", "Creates a new document"))
         self.menus.setTitle(_translate("MainWindow", "File"))
         self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
+        self.menuSignalTools.setTitle(_translate("MainWindow", "Signal Tools"))
         self.menuPlay_navigate.setTitle(
             _translate("MainWindow", "Play && navigate"))
         self.menuInstruments_markers.setTitle(
@@ -1022,12 +1076,12 @@ class Ui_MainWindow(QMainWindow):
                 "MainWindow", "Spectrum of the visible part of the signal")
         )
         self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
-        self.actionFFT.setText(_translate("MainWindow", "Time FFT..."))
+        self.actionFFT.setText(_translate("MainWindow", "FFT spectrum analysis"))
         self.actionFFT.setStatusTip(
             _translate(
-                "MainWindow", "Performs Time FFT")
+                "MainWindow", "Spectrum of the visible part of the signal")
         )
-        self.actionFFT.setShortcut(_translate("MainWindow", "Ctrl+T"))
+        self.actionFFT.setShortcut(_translate("MainWindow", "Ctrl+F"))
         self.actionSave_as.setText(_translate(
             "MainWindow", "Save signal as..."))
         self.actionSave_as.setShortcut(_translate("MainWindow", "Ctrl+S"))
