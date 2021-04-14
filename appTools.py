@@ -5,7 +5,7 @@ import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.exporters
 from fpdf import FPDF
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets,QtMultimedia
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QDialog,
@@ -27,6 +27,9 @@ from scipy import signal as sig
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from playsound import playsound
+from matplotlib import cm
+import sounddevice as sd
+import soundfile as sf
 
 
 class EQWindow(QWidget):
@@ -259,37 +262,11 @@ class Ui_MainWindow(QMainWindow):
             for widget in self.mdi.subWindowList():
                 if widget.windowTitle().startswith(f'{index}'):
                     return(widget, 0, False)
-    
-    def doubleZoom(self, subwindow, type):
-        subWindowIndex, graphFlag = self.titleIndex(subwindow.windowTitle())
-        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), subWindowIndex)
-        if graphFlag:
-            if type==1:
-                self.zoomIn(OGWindow, subWindowIndex)
-            else:
-                self.zoomOut(OGWindow, subWindowIndex)
-            if flag:
-                if type==1:
-                    self.zoomIn(ModWindow, subWindowIndex)
-                else:
-                    self.zoomOut(ModWindow, subWindowIndex)
 
-    def doubleScroll(self, subwindow, type):
-        subWindowIndex, graphFlag = self.titleIndex(subwindow.windowTitle())
-        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), subWindowIndex)
-        if graphFlag:
-            if type==1:
-                self.scrollLeft(OGWindow, subWindowIndex)
-            else:
-                self.scrollRight(OGWindow, subWindowIndex)
-            if flag:
-                if type==1:
-                    self.scrollLeft(ModWindow, subWindowIndex)
-                else:
-                    self.scrollRight(ModWindow, subWindowIndex)
-
-
-            
+    def initialize(self,sigInit,zoomInit,rangeInit):
+        self.signals.append(sigInit)
+        self.zoomRanges.append(zoomInit)
+        self.graphRanges.append(rangeInit)
 
     # PDF
     def generatePDF(self, widget_list, filename):
@@ -368,6 +345,34 @@ class Ui_MainWindow(QMainWindow):
             self.generatePDF(widget_list, filename)
 
     # Scroll/Zoom
+    def doubleZoom(self, subwindow, type):
+        subWindowIndex, graphFlag = self.titleIndex(subwindow.windowTitle())
+        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), subWindowIndex)
+        if graphFlag:
+            if type==1:
+                self.zoomIn(OGWindow, subWindowIndex)
+            else:
+                self.zoomOut(OGWindow, subWindowIndex)
+            if flag:
+                if type==1:
+                    self.zoomIn(ModWindow, subWindowIndex)
+                else:
+                    self.zoomOut(ModWindow, subWindowIndex)
+
+    def doubleScroll(self, subwindow, type):
+        subWindowIndex, graphFlag = self.titleIndex(subwindow.windowTitle())
+        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), subWindowIndex)
+        if graphFlag:
+            if type==1:
+                self.scrollLeft(OGWindow, subWindowIndex)
+            else:
+                self.scrollRight(OGWindow, subWindowIndex)
+            if flag:
+                if type==1:
+                    self.scrollLeft(ModWindow, subWindowIndex)
+                else:
+                    self.scrollRight(ModWindow, subWindowIndex)
+
     def scrollRight(self, subWindow, subWindowIndex):
         subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
         self.graphRanges[subWindowIndex - 1] += 100
@@ -425,6 +430,12 @@ class Ui_MainWindow(QMainWindow):
                 self.actionZoomIn.setEnabled(True)
 
     # Play/Pause
+    def playSound(self,filename):
+        data, fs = sf.read(filename, dtype='float32')  
+        sd.play(data, fs)
+            
+
+
     def setStep(self, value):
         self.speedFactor = value
 
@@ -462,6 +473,7 @@ class Ui_MainWindow(QMainWindow):
 
     def stopClicked(self):
         self.plays=False
+        sd.stop()
 
     # Spectrogram
     def updateSpectro(self):
@@ -506,7 +518,8 @@ class Ui_MainWindow(QMainWindow):
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
         )
         ax = figure.add_subplot()
-        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=self.ColorMap)
+        cMap = cm.get_cmap(self.ColorMap,30)
+        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=cMap)
         figure.colorbar(img, ax=ax)
         canvas.draw()
         return (figure, canvas)
@@ -531,9 +544,7 @@ class Ui_MainWindow(QMainWindow):
         subWindowIndex,_ = self.titleIndex(subWindow.windowTitle())
     
         self.windowsCount = self.windowsCount + 1
-        self.graphRanges.append(0)
-        self.signals.append(0)
-        self.zoomRanges.append(0)
+        self.initialize(0,0,0)
         
         if type == 's':
             self.Spectrogram(
@@ -642,9 +653,7 @@ class Ui_MainWindow(QMainWindow):
             sigbufs[i, :] = f.readSignal(i)
         # Graph each sample in the file
         for i in range(0, n):
-            self.signals.append(sigbufs[i])
-            self.graphRanges.append(0)
-            self.zoomRanges.append(400)
+            self.initialize(sigbufs[i],400,0)
             self.graphWidget = pg.PlotWidget()
             self.Graph(sigbufs[i], signal_labels[i])
         self.mdi.cascadeSubWindows()
@@ -656,9 +665,7 @@ class Ui_MainWindow(QMainWindow):
             for line in fp:
                 signal.append((line.rstrip().split(" ")[1]))
             data = np.array(signal).astype(np.float)
-            self.signals.append(data)
-            self.graphRanges.append(0)
-            self.zoomRanges.append(400)
+            self.initialize(data,400,0)
             self.graphWidget = pg.PlotWidget()
             self.Graph(data, signal_label[0:-4])
 
@@ -666,9 +673,7 @@ class Ui_MainWindow(QMainWindow):
         data = pd.read_csv(filename).iloc[:, 1]
         signal_label = os.path.basename(filename)
         array = data.to_numpy()
-        self.signals.append(array)
-        self.graphRanges.append(0)
-        self.zoomRanges.append(400)
+        self.initialize(array,400,0)
         self.graphWidget = pg.PlotWidget()
         self.Graph(array, signal_label[0:-4])
             
@@ -679,9 +684,7 @@ class Ui_MainWindow(QMainWindow):
             filename, sr=None, mono=True, offset=0.0, duration=None
         )
 
-        self.signals.append(samples)
-        self.graphRanges.append(0)
-        self.zoomRanges.append(400)
+        self.initialize(samples,400,0)
 
         duration = len(samples) / self.sampling_rate
         time = np.arange(0, duration, 1 / self.sampling_rate)
@@ -702,9 +705,7 @@ class Ui_MainWindow(QMainWindow):
         #         + self.fft[i] * math.sin((self.fftphase[i])) * 1j
         #     )
 
-        self.signals.append(samples)
-        self.graphRanges.append(0)
-        self.zoomRanges.append(400)
+        self.initialize(samples,400,0)
         self.Graph(samples, signal_label + " modified")
         # write("test.wav", self.sampling_rate, s)
         self.equalizer()
@@ -1023,7 +1024,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.triggered.connect(
             lambda: self.doubleZoom(self.mdi.activeSubWindow(),-1)
         )
-        self.actionPlaySound.triggered.connect(lambda: playsound("test.wav"))
+        self.actionPlaySound.triggered.connect(lambda: self.playSound("test.wav"))
         self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
