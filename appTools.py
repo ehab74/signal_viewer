@@ -519,8 +519,7 @@ class Ui_MainWindow(QMainWindow):
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
         )
         ax = figure.add_subplot()
-        cMap = cm.get_cmap(self.ColorMap,30)
-        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=cMap,vmin = 5,vmax = 5)
+        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=self.ColorMap, vmin = -150,vmax = 70)
         figure.colorbar(img, ax=ax)
         canvas.draw()
         return (figure, canvas)
@@ -592,7 +591,7 @@ class Ui_MainWindow(QMainWindow):
         )
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = ffti
-        write(r"test.wav", self.sampling_rate, ffti.astype(np.float64))
+        write (r"test.wav", self.sampling_rate, ffti.astype(np.float64))
 
     def fftDraw(self, signal, title):
         Amp = abs(scipy.fft.rfft(signal))
@@ -603,6 +602,9 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget.setBackground("w")
         mydialog.graphWidget.plot(x=frequencies[range(len(Amp) // 2)], y=Amp[range(len(Amp) // 2)], pen="b")
         mydialog.graphWidget.showGrid(x=True, y=True)
+        mydialog.graphWidget.setLimits(
+            xMin=0, xMax=max(frequencies), yMin=min(Amp[range(len(Amp) // 2)]), yMax=max(Amp[range(len(Amp) // 2)])
+        )
         icon = QtGui.QIcon()
         icon.addPixmap(
             QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
@@ -704,6 +706,7 @@ class Ui_MainWindow(QMainWindow):
         self.Graph(samples, signal_label + " modified")
         # write("test.wav", self.sampling_rate, s)
         self.equalizer()
+        write (r"test.wav", self.sampling_rate, samples.astype(np.float64))
 
     def browsefiles(self):
         self.closeMssgBox = True
