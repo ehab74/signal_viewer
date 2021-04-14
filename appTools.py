@@ -35,7 +35,7 @@ class EQWindow(QWidget):
         self.sliders = []
         self.gainLabels = []
         self.bands = []
-        self.gainValues = []
+        self.gainValues = []    
         self.gainOld = [1] * 10
         grid = QGridLayout()
         temp = len(ui.freqs) / 10
@@ -1015,9 +1015,9 @@ class Ui_MainWindow(QMainWindow):
         self.actionWinter.triggered.connect(
             lambda: self.updateSpectro("winter", self.actionWinter)
         )
-        self.actionSummer.triggered.connect(
             lambda: self.updateSpectro("summer", self.actionSummer)
         )
+        self.actionSummer.triggered.connect(
         self.actionTurbo.triggered.connect(
             lambda: self.updateSpectro("turbo", self.actionTurbo)
         )
