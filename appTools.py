@@ -430,11 +430,12 @@ class Ui_MainWindow(QMainWindow):
                 self.actionZoomIn.setEnabled(True)
 
     # Play/Pause
-    def playSound(self,filename):
-        data, fs = sf.read(filename, dtype='float32')  
+    def playSound(self,subWindow):
+        if subWindow.windowTitle().find("modified")!=-1:
+            data, fs = sf.read("test.wav", dtype='float32')
+        else:
+            data, fs = sf.read("original.wav", dtype='float32')
         sd.play(data, fs)
-            
-
 
     def setStep(self, value):
         self.speedFactor = value
@@ -591,7 +592,7 @@ class Ui_MainWindow(QMainWindow):
         )
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = ffti
-        write(r"test.wav", self.sampling_rate, ffti.astype(np.float32))
+        write(r"test.wav", self.sampling_rate, ffti.astype(np.float64))
 
     def fftDraw(self, signal, title):
         Amp = abs(scipy.fft.rfft(signal))
@@ -697,7 +698,7 @@ class Ui_MainWindow(QMainWindow):
         self.freqs = np.fft.rfftfreq(len(self.fft), (1.0 / self.sampling_rate))
 
         self.Graph(samples, signal_label)
-
+        write(r"original.wav", self.sampling_rate, self.ffti.astype(np.float32))
         # self.ffti = []
         # for i in range(len(self.fft)):
         #     self.ffti.append(
@@ -1024,7 +1025,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.triggered.connect(
             lambda: self.doubleZoom(self.mdi.activeSubWindow(),-1)
         )
-        self.actionPlaySound.triggered.connect(lambda: self.playSound("test.wav"))
+        self.actionPlaySound.triggered.connect(lambda: self.playSound(self.mdi.activeSubWindow()))
         self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
