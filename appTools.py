@@ -698,7 +698,7 @@ class Ui_MainWindow(QMainWindow):
         self.freqs = np.fft.rfftfreq(len(self.fft), (1.0 / self.sampling_rate))
 
         self.Graph(samples, signal_label)
-        write(r"original.wav", self.sampling_rate, self.ffti.astype(np.float32))
+        write(r"original.wav", self.sampling_rate, samples.astype(np.float64))
         # self.ffti = []
         # for i in range(len(self.fft)):
         #     self.ffti.append(
