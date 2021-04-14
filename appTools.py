@@ -37,14 +37,14 @@ class EQWindow(QWidget):
         self.bands = []
         self.gainValues = []
         grid = QGridLayout()
-        temp = len(ui.freqs) / 10
+        bandLength = len(ui.freqs) / 10
         for i in range(10):
             self.sliders.append(QSlider(Qt.Vertical))
             self.gainLabels.append(QLabel)
             self.bands.append(0)
             self.gainValues.append(0.0)
             grid.addWidget(self.createExampleGroup(
-                int(temp * (i + 1)), i), 0, i)
+                int(bandLength * (i + 1)), i), 0, i)
 
         self.setLayout(grid)
 
@@ -59,7 +59,7 @@ class EQWindow(QWidget):
         self.sliders[ind].setTickPosition(QSlider.TicksBothSides)
         self.sliders[ind].setTickInterval(1)
         self.sliders[ind].setSingleStep(1)
-        self.sliders[ind].valueChanged.connect(lambda: self.valueChange(ind))
+        self.sliders[ind].valueChanged.connect(lambda: self.updateWindows(ind))
         self.bands[ind] = txt
         freq = QLabel()
         freq.setText(str(txt) + " Hz")
@@ -73,7 +73,7 @@ class EQWindow(QWidget):
 
         return groupBox
 
-    def valueChange(self, ind):
+    def updateWindows(self, ind):
         self.gainValues[ind] = self.sliders[ind].value()
         self.gainLabels[ind].setText(
             str(float(self.sliders[ind].value())))
@@ -96,7 +96,7 @@ class MdiWind(QtWidgets.QMdiSubWindow):
         if "Time-FFT" not in self.windowTitle():
             ui.activeWinds -= 1
             if ui.activeWinds == 0:
-                ui.hideIcons()
+                ui.hideGraphIcons()
         itr = 0
         # Adds closed subwindows to a list
         for widget in ui.mdi.subWindowList():
@@ -134,22 +134,25 @@ class Ui_MainWindow(QMainWindow):
     deletedWinds = []  # Stores the closed windows to erase them from the subWindowList
     windowsCount = 0  # Apply an index for each window
     activeWinds = 0  # Stores the number of active windows
-    stop = False  # Checks if stop is clicked to affect the play function
     closeMssgBox = False  # Checks if a message box should appear on close event
-    plays = False
+    plays = False # Checks if play is clicked
     speedFactor = 1
-    cmap = "viridis"
     sampling_rate = 200
 
     def equalizer(self):
         self.activeWinds += 1
         self.EQWind = EQWindow()
         mydialog = MdiWind(self)
+        icon = QtGui.QIcon()
+        icon.addPixmap(
+            QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
+        )
+        mydialog.setWindowIcon(icon)
         mydialog.setWidget(self.EQWind)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
-    def hideIcons(self):
+    def hideGraphIcons(self):
         self.actionZoomIn.setEnabled(False)
         self.actionZoomOut.setEnabled(False)
         self.actionPlay.setEnabled(False)
@@ -167,15 +170,8 @@ class Ui_MainWindow(QMainWindow):
         self.actionPlaySound.setEnabled(False)
         self.actionFFT.setEnabled(False)
 
-    def hideColors(self):
-        self.actionViridis.setChecked(False)
-        self.actionGray.setChecked(False)
-        self.actionWinter.setChecked(False)
-        self.actionTurbo.setChecked(False)
-        self.actionHSV.setChecked(False)
-        self.actionSummer.setChecked(False)
 
-    def showIcons(self):
+    def showGraphIcons(self):
         self.actionZoomIn.setEnabled(True)
         self.actionZoomOut.setEnabled(True)
         self.actionPlay.setEnabled(True)
@@ -186,13 +182,52 @@ class Ui_MainWindow(QMainWindow):
         self.action0_5x.setEnabled(True)
         self.action1x.setEnabled(True)
         self.action2x.setEnabled(True)
-        self.actionCascade.setEnabled(True)
         self.actionPause.setEnabled(True)
+        self.actionCascade.setEnabled(True)
         self.actionTile.setEnabled(True)
+        self.actionCloseAll.setEnabled(True)
         self.actionPlaySound.setEnabled(True)
         self.actionFFT.setEnabled(True)
-        self.actionCloseAll.setEnabled(True)
 
+    def uncheckColors(self):
+        self.actionViridis.setChecked(False)
+        self.actionGray.setChecked(False)
+        self.actionWinter.setChecked(False)
+        self.actionTurbo.setChecked(False)
+        self.actionHSV.setChecked(False)
+        self.actionSummer.setChecked(False)
+    
+    def checkColors(self):
+        self.actionViridis.setChecked(True)
+        self.actionGray.setChecked(True)
+        self.actionWinter.setChecked(True)
+        self.actionTurbo.setChecked(True)
+        self.actionHSV.setChecked(True)
+        self.actionSummer.setChecked(True)
+    
+    def hideColors(self):
+        self.actionViridis.setEnabled(False)
+        self.actionGray.setEnabled(False)
+        self.actionWinter.setEnabled(False)
+        self.actionTurbo.setEnabled(False)
+        self.actionHSV.setEnabled(False)
+        self.actionSummer.setEnabled(False)
+        self.actionCascade.setEnabled(True)
+        self.actionTile.setEnabled(True)
+        self.actionCloseAll.setEnabled(True)
+    
+    
+    def showColors(self):
+        self.actionViridis.setEnabled(True)
+        self.actionGray.setEnabled(True)
+        self.actionWinter.setEnabled(True)
+        self.actionTurbo.setEnabled(True)
+        self.actionHSV.setEnabled(True)
+        self.actionSummer.setEnabled(True)
+        self.actionCascade.setEnabled(True)
+        self.actionTile.setEnabled(True)
+        self.actionCloseAll.setEnabled(True)
+    
     def titleIndex(self, subWindowTitle):
         # Extracts the index of the subwindow from the window title and checks if the window is a spectrogram or a normal graph
         if subWindowTitle.find("Time-FFT") == -1:
@@ -409,8 +444,7 @@ class Ui_MainWindow(QMainWindow):
                 # while subWindow.graphWidget.viewRange()[0][1] < len(self.signals[subWindowIndex-1]):
             ):
 
-                if self.stop:
-                    self.stop = False
+                if not self.plays:
                     self.graphRanges[subWindowIndex - 1] += step
                     break
                 step += 40 * self.speedFactor
@@ -427,7 +461,6 @@ class Ui_MainWindow(QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     def stopClicked(self):
-        self.stop = True
         self.plays=False
 
     # Spectrogram
@@ -453,7 +486,7 @@ class Ui_MainWindow(QMainWindow):
             mydialog.setWidget(mydialog.canvas)
         
     def colorSpectro(self, color, action):
-        self.hideColors()
+        self.uncheckColors()
         action.setChecked(True)
         self.ColorMap = color
         title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
@@ -493,41 +526,37 @@ class Ui_MainWindow(QMainWindow):
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
 
-    def checkGraph(self, subWindow, type):
-        # checks if the selected widget is a graph
-        subWindowIndex, graphFlag = self.titleIndex(subWindow.windowTitle())
-        if graphFlag:
-            self.windowsCount = self.windowsCount + 1
-            self.graphRanges.append(0)
-            self.signals.append(0)
-            self.zoomRanges.append(0)
-            if type == 's':
-                self.Spectrogram(
-                    self.signals[subWindowIndex - 1], subWindow.windowTitle())
-            else:
-                self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
+    def checkTool(self, subWindow, type):
+        # checks the selected tool
+        subWindowIndex,_ = self.titleIndex(subWindow.windowTitle())
+    
+        self.windowsCount = self.windowsCount + 1
+        self.graphRanges.append(0)
+        self.signals.append(0)
+        self.zoomRanges.append(0)
+        
+        if type == 's':
+            self.Spectrogram(
+                self.signals[subWindowIndex - 1], subWindow.windowTitle())
+        else:
+            self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     def checkWindow(self, subWindow):
         if subWindow.windowTitle().find("Time-FFT") != -1:
-            self.actionViridis.setEnabled(True)
-            self.actionGray.setEnabled(True)
-            self.actionWinter.setEnabled(True)
-            self.actionTurbo.setEnabled(True)
-            self.actionHSV.setEnabled(True)
-            self.actionSummer.setEnabled(True)
+            self.hideGraphIcons()
+            self.showColors()
 
             itr = 0
             for widget in ui.mdi.subWindowList():
                 if widget.windowTitle() == subWindow.windowTitle():
                     self.windowIndx = itr
                 itr += 1
+        elif subWindow.windowTitle()=="Equalizer" or subWindow.windowTitle().find("FFT")!=-1:
+            self.hideGraphIcons()
+            self.hideColors()
         else:
-            self.actionViridis.setEnabled(False)
-            self.actionGray.setEnabled(False)
-            self.actionWinter.setEnabled(False)
-            self.actionTurbo.setEnabled(False)
-            self.actionHSV.setEnabled(False)
-            self.actionSummer.setEnabled(False)
+            self.hideColors()
+            self.showGraphIcons()
 
     # Graphs
     def updateGraph(self):
@@ -551,7 +580,7 @@ class Ui_MainWindow(QMainWindow):
         )
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = ffti
-        write("test.wav", self.sampling_rate, ffti.astype(np.float32))
+        write(r"test.wav", self.sampling_rate, ffti.astype(np.float32))
 
     def fftDraw(self, signal, title):
         Amp = abs(scipy.fft.rfft(signal))
@@ -599,7 +628,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWidget(mydialog.graphWidget)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
-        self.showIcons()
+        self.showGraphIcons()
 
     # Reading files
     def read_edf(self, filename):
@@ -998,9 +1027,9 @@ class Ui_MainWindow(QMainWindow):
         self.actionPlay.triggered.connect(lambda: self.play(self.mdi.activeSubWindow()))
         self.actionPause.triggered.connect(lambda: self.stopClicked())
         self.actionSpectrogram.triggered.connect(
-            lambda: self.checkGraph(self.mdi.activeSubWindow(), 's')
+            lambda: self.checkTool(self.mdi.activeSubWindow(), 's')
         )
-        self.actionFFT.triggered.connect(lambda: self.checkGraph(self.mdi.activeSubWindow(), 'f'))
+        self.actionFFT.triggered.connect(lambda: self.checkTool(self.mdi.activeSubWindow(), 'f'))
         self.actionForward.triggered.connect(
             lambda: self.doubleScroll(self.mdi.activeSubWindow(), -1)
         )
