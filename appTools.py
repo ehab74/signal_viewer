@@ -85,7 +85,7 @@ class EQWindow(QWidget):
         self.bands = []
         self.gainValues = []
         grid = QGridLayout()
-        bandLength = len(ui.freqs) / 10
+        bandLength = (len(ui.freqs)//2) / 10
         for i in range(10):
             self.sliders.append(QSlider(Qt.Vertical))
             self.gainLabels.append(QLabel)
@@ -124,13 +124,29 @@ class EQWindow(QWidget):
         self.gainValues[ind] = self.sliders[ind].value()
         self.gainLabels[ind].setText(str(float(self.sliders[ind].value())))
         for i in range(
-            2 * (self.bands[ind] - int(len(ui.freqs) / 10)), 2 * self.bands[ind] - 1
+            (self.bands[ind] - int((len(ui.freqs)//2) / 10)), self.bands[ind]
         ):
+        # for i in range(1,5):
+            if i == 0:
+                continue
+            # print(ui.ffti[i])
+            # print(ui.ffti[-i])
+            # print(ui.fft[i])
+            # print(ui.fft[-i])
+            ui.fft[-i] = ui.copyFFT[-i] * self.gainValues[ind]
             ui.fft[i] = ui.copyFFT[i] * self.gainValues[ind]
+            # print(ui.fft[i])
+            # print(ui.fft[-i])
             ui.ffti[i] = (
                 ui.fft[i] * math.cos(ui.fftphase[i])
                 + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
             )
+            ui.ffti[-i] = (
+                ui.fft[-i] * math.cos(ui.fftphase[-i])
+                + ui.fft[-i] * math.sin(ui.fftphase[-i]) * 1j
+            )
+            # print(ui.ffti[i])
+            # print(ui.ffti[-i])
         ui.updateGraph()
         ui.updateSpectro()
 
@@ -532,7 +548,7 @@ class Ui_MainWindow(QMainWindow):
     # Spectrogram
     def updateSpectro(self):
         ffti = []
-        ffti = np.array(scipy.fft.irfft(self.ffti))
+        ffti = np.real_if_close(np.array(np.fft.ifft(self.ffti)))
         flag = False
         itr = 0
         for widget in self.mdi.subWindowList():
@@ -635,8 +651,10 @@ class Ui_MainWindow(QMainWindow):
 
     # Graphs
     def updateGraph(self):
+
         ffti = []
-        ffti = np.array(scipy.fft.irfft(self.ffti))
+        ffti = np.real_if_close(np.array(np.fft.ifft(self.ffti)))
+        print(ffti)
 
         itr = 0
         for widget in self.mdi.subWindowList():
@@ -658,8 +676,8 @@ class Ui_MainWindow(QMainWindow):
         write(r"test.wav", self.sampling_rate, ffti.astype(np.float64))
 
     def fftDraw(self, signal, title):
-        Amp = abs(scipy.fft.rfft(signal))
-        frequencies = np.fft.rfftfreq(len(Amp), (1.0 / self.sampling_rate))
+        Amp = abs(np.fft.fft(signal))
+        frequencies = np.fft.fftfreq(len(Amp), (1.0 / self.sampling_rate))
         self.initialize(Amp, 400, 0)
         mydialog = MdiWind(self)
         mydialog.graphWidget = pg.PlotWidget()
@@ -763,11 +781,11 @@ class Ui_MainWindow(QMainWindow):
         time = np.arange(0, duration, 1 / self.sampling_rate)
         # librosa.display.waveplot(y=samples, sr=self.sampling_rate)
         frequency = []
-        self.fftphase = np.angle(scipy.fft.rfft(samples))
-        self.fft = abs(scipy.fft.rfft(samples))
-        self.copyFFT = abs(scipy.fft.rfft(samples))
-        self.ffti = scipy.fft.rfft(samples)
-        self.freqs = np.fft.rfftfreq(len(self.fft), (1.0 / self.sampling_rate))
+        self.fftphase = np.angle(np.fft.fft(samples))
+        self.fft = abs(np.fft.fft(samples))
+        self.copyFFT = abs(np.fft.fft(samples))
+        self.ffti = np.fft.fft(samples)
+        self.freqs = np.fft.fftfreq(len(self.fft), (1.0 / self.sampling_rate))
 
         self.Graph(samples, signal_label)
         write(r"original.wav", self.sampling_rate, samples.astype(np.float64))
