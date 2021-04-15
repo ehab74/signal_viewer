@@ -126,17 +126,10 @@ class EQWindow(QWidget):
         for i in range(
             (self.bands[ind] - int((len(ui.freqs)//2) / 10)), self.bands[ind]
         ):
-        # for i in range(1,5):
             if i == 0:
                 continue
-            # print(ui.ffti[i])
-            # print(ui.ffti[-i])
-            # print(ui.fft[i])
-            # print(ui.fft[-i])
             ui.fft[-i] = ui.copyFFT[-i] * self.gainValues[ind]
             ui.fft[i] = ui.copyFFT[i] * self.gainValues[ind]
-            # print(ui.fft[i])
-            # print(ui.fft[-i])
             ui.ffti[i] = (
                 ui.fft[i] * math.cos(ui.fftphase[i])
                 + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
@@ -145,8 +138,7 @@ class EQWindow(QWidget):
                 ui.fft[-i] * math.cos(ui.fftphase[-i])
                 + ui.fft[-i] * math.sin(ui.fftphase[-i]) * 1j
             )
-            # print(ui.ffti[i])
-            # print(ui.ffti[-i])
+
         ui.updateGraph()
         ui.updateSpectro()
 
@@ -580,7 +572,7 @@ class Ui_MainWindow(QMainWindow):
             10 * np.log10(Sxx),
             cmap=self.ColorMap,
             vmin=self.intensityMin,
-            vmax=self.intensityMax,
+            vmax=self.intensityMax,shading = "gouraud"
         )
         figure.colorbar(img, ax=ax)
         canvas.draw()
@@ -641,10 +633,8 @@ class Ui_MainWindow(QMainWindow):
 
     # Graphs
     def updateGraph(self):
-
         ffti = []
         ffti = np.real_if_close(np.array(np.fft.ifft(self.ffti)))
-        print(ffti)
 
         itr = 0
         for widget in self.mdi.subWindowList():
@@ -713,7 +703,8 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.windowsCount) + "#" + title)
         mydialog.graphWidget = self.graphDraw(signal)
-        mydialog.graphWidget.setXRange(0, 400, padding=0)
+        if title.find('.wav') ==-1:
+            mydialog.graphWidget.setXRange(0, 400, padding=0)
         mydialog.graphWidget.setLimits(
             xMin=0, xMax=len(signal), yMin=min(signal), yMax=max(signal)
         )
