@@ -519,7 +519,7 @@ class Ui_MainWindow(QMainWindow):
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
         )
         ax = figure.add_subplot()
-        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=self.ColorMap, vmin = -150,vmax = 70)
+        img = ax.pcolormesh(t, f, 10 * np.log10(Sxx), cmap=self.ColorMap)
         figure.colorbar(img, ax=ax)
         canvas.draw()
         return (figure, canvas)
