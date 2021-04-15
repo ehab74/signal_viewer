@@ -315,11 +315,12 @@ class Ui_MainWindow(QMainWindow):
         titlesList = []  # stores the titles of open widgets
         yCord = 0  # Y-coordinate on the PDF page
         itr = 0
+
         # To iterate on all the opened widgets to get their title
         for widget in widget_list:
             if itr not in self.deletedWinds:
                 if widget.windowTitle().find("Time-FFT") == -1:
-                    titlesList.append(widget.windowTitle())
+                    titlesList.append(widget.windowTitle(),itr)
                 else:
                     # We put an indicator on the spectrogram widgets to mark them
                     tempStr = (
@@ -328,12 +329,12 @@ class Ui_MainWindow(QMainWindow):
                         else widget.windowTitle()[12:]
                     )
                     tempStr = tempStr + "x"
-                    titlesList.append(tempStr)
+                    titlesList.append(tempStr,itr)
             itr += 1
         titlesList.sort()
         for title in titlesList:
             windowIndx, _ = self.titleIndex(title)
-            if title[-1] != "x":
+            if title[0][-1] != "x":
                 # The widgets are transformed into images to get inserted into the PDF
                 graphPlot = self.graphDraw(self.signals[windowIndx - 1])
                 imgName = f"fileName{str(windowIndx)}.png"
@@ -341,8 +342,8 @@ class Ui_MainWindow(QMainWindow):
                 exporter.parameters()["width"] = 250
                 exporter.parameters()["height"] = 250
                 exporter.export(imgName)
-                title = title[2:] if title[1] == "#" else title[3:]
-                pdf.cell(0, 10, txt=title, ln=1, align="C")
+                title[0] = title[0][2:] if title[0][1] == "#" else title[0][3:]
+                pdf.cell(0, 10, txt=title[0], ln=1, align="C")
                 # We change the index of the Y-Coordinate to insert the next image
                 yCord = pdf.get_y()
                 pdf.image(
@@ -356,7 +357,7 @@ class Ui_MainWindow(QMainWindow):
                 )
                 os.remove(imgName)
             else:
-                fig, _ = self.spectroDraw(self.signals[windowIndx - 1], title)
+                fig, _ = self.spectroDraw(self.signals[windowIndx - 1], title,widget_list[title[1]].figure,widget_list[title[1]].canvas)
                 imgName = f".fileName{str(windowIndx + 99)}.png"
                 fig.savefig(imgName)
                 pdf.image(
@@ -532,10 +533,10 @@ class Ui_MainWindow(QMainWindow):
             title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
             subWindowIndex, _ = self.titleIndex(title)
             mydialog = self.mdi.subWindowList()[self.windowIndx]
-            mydialog.figure, mydialog.canvas = self.spectroDraw(ffti, title)
-            spectroWindow = SpectroWindow()
-            spectroWindow.getWidget(mydialog.canvas)
-            mydialog.setWidget(spectroWindow)
+            mydialog.figure, mydialog.canvas = self.spectroDraw(ffti, title,mydialog.figure,mydialog.canvas)
+            # spectroWindow = SpectroWindow()
+            # spectroWindow.getWidget(mydialog.canvas)
+            # mydialog.setWidget(spectroWindow)
 
     def colorSpectro(self, color, action):
         if type(action) == type(self.actionViridis):
@@ -546,16 +547,30 @@ class Ui_MainWindow(QMainWindow):
         subWindowIndex, _ = self.titleIndex(title)
         mydialog = self.mdi.subWindowList()[self.windowIndx]
         mydialog.figure, mydialog.canvas = self.spectroDraw(
-            self.signals[subWindowIndex - 1], title
+            self.signals[subWindowIndex - 1], title,mydialog.figure,mydialog.canvas
         )
-        spectroWindow = SpectroWindow()
-        spectroWindow.getWidget(mydialog.canvas)
-        mydialog.setWidget(spectroWindow)
 
-    def spectroDraw(self, signal, title):
+        # myWidget = mydialog.widget().layout().itemAt(2).widget()
+        # myWidget.setParent(None)
+        # mydialog.widget().layout().addWidget(mydialog.canvas)
+        
+        # mydialog.figure.clear()
+        # f, t, Sxx = sig.spectrogram(
+        #     self.signals[subWindowIndex - 1], fs=200 if title.find(".wav") == -1 else self.sampling_rate
+        # )
+        # ax = mydialog.figure.add_subplot()
+        # img = ax.pcolormesh(
+        #     t, f, 10 * np.log10(Sxx), cmap=self.ColorMap, vmin=self.vMin, vmax=self.vMax
+        # )
+        # mydialog.figure.colorbar(img, ax=ax)
+        # mydialog.canvas.draw()
+        # spectroWindow.layout().addWidget(mydialog.canvas)
+        # spectroWindow = SpectroWindow()
+        # spectroWindow.getWidget(mydialog.canvas)
+        # mydialog.setWidget(spectroWindow)
+
+    def spectroDraw(self, signal, title,figure,canvas):
         # Draws the spectrogram of the signal
-        figure = plt.figure()
-        canvas = FigureCanvas(figure)
         figure.clear()
         f, t, Sxx = sig.spectrogram(
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
@@ -570,8 +585,10 @@ class Ui_MainWindow(QMainWindow):
 
     def Spectrogram(self, signal, title):
         # Inserts the drawn spectrogram into a widget
+        figure = plt.figure()
+        canvas = FigureCanvas(figure)
         mydialog = MdiWind(self)
-        mydialog.figure, mydialog.canvas = self.spectroDraw(signal, title)
+        mydialog.figure, mydialog.canvas = self.spectroDraw(signal, title,figure,canvas)
         icon = QtGui.QIcon()
 
         icon.addPixmap(
