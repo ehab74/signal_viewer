@@ -50,10 +50,10 @@ class SpectroWidget(QWidget):
     def createSlider(self, txt, ind, val):
         groupBox = QGroupBox()
 
-        self.sliders[ind].setMaximum(200)
-        self.sliders[ind].setMinimum(-200)
+        self.sliders[ind].setMaximum(ui.intensityMax)
+        self.sliders[ind].setMinimum(0)
         self.sliders[ind].setValue(val)
-        self.sliders[ind].setSingleStep(10)
+        self.sliders[ind].setSingleStep(100)
         self.sliders[ind].valueChanged.connect(
             lambda: self.changeIntensity(ind))
         attribute = QLabel()
@@ -194,8 +194,8 @@ class Ui_MainWindow(QMainWindow):
     closeMssgBox = False  # Checks if a message box should appear on close event
     plays = False  # Checks if play is clicked
     speedFactor = 1
-    intensityMin = -180
-    intensityMax = -40
+    intensityMin = 0
+    intensityMax = 4000
 
     def equalizer(self):
         self.activeWinds += 1
@@ -573,13 +573,16 @@ class Ui_MainWindow(QMainWindow):
         )
 
         ax = figure.add_subplot()
+        # self.intensityMin = f.min()
+        # self.intensityMax = f.max()
+        ax.set_ylim([self.intensityMin,self.intensityMax])
         img = ax.pcolormesh(
             t,
             f,
             10 * np.log10(Sxx),
-            cmap=self.ColorMap,
-            vmin=self.intensityMin,
-            vmax=self.intensityMax
+            cmap=self.ColorMap
+            # vmin=self.intensityMin,
+            # vmax=self.intensityMin
         )
         figure.colorbar(img, ax=ax)
         canvas.draw()
@@ -593,6 +596,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.figure, mydialog.canvas = self.spectroDraw(
             signal, title, figure, canvas
         )
+        
         icon = QtGui.QIcon()
 
         icon.addPixmap(
@@ -778,6 +782,8 @@ class Ui_MainWindow(QMainWindow):
         self.fft = abs(self.ffti)
         self.copyFFT = abs(self.ffti)
         self.freqs = np.fft.fftfreq(len(self.fft), (1.0 / self.sampling_rate))
+        self.intensityMin = 0
+        self.intensityMax = self.freqs.max()
 
         self.Graph(samples, signal_label)
         write(r"original.wav", self.sampling_rate, samples.astype(np.float64))
