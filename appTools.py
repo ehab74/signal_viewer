@@ -429,30 +429,32 @@ class Ui_MainWindow(QMainWindow):
         OGWindow, ModWindow, flag = self.getWindow(
             subwindow.windowTitle(), subWindowIndex
         )
+        OGIndex = self.titleIndex(OGWindow.windowTitle())
         if type == 'in':
-            self.zoomIn(OGWindow, subWindowIndex)
+            self.zoomIn(OGWindow, OGIndex)
         else:
-            self.zoomOut(OGWindow, subWindowIndex)
+            self.zoomOut(OGWindow, OGIndex)
         if flag:
             if type == 'in':
-                self.zoomIn(ModWindow, subWindowIndex)
+                self.zoomIn(ModWindow, OGIndex+1)
             else:
-                self.zoomOut(ModWindow, subWindowIndex)
+                self.zoomOut(ModWindow, OGIndex+1)
 
     def doubleScroll(self, subwindow, type):
         subWindowIndex = self.titleIndex(subwindow.windowTitle())
         OGWindow, ModWindow, flag = self.getWindow(
             subwindow.windowTitle(), subWindowIndex
         )
+        OGIndex = self.titleIndex(OGWindow.windowTitle())
         if type == 'left':
-            self.scrollLeft(OGWindow, subWindowIndex)
+            self.scrollLeft(OGWindow, OGIndex)
         else:
-            self.scrollRight(OGWindow, subWindowIndex)
+            self.scrollRight(OGWindow, OGIndex)
         if flag:
             if type == 'left':
-                self.scrollLeft(ModWindow, subWindowIndex)
+                self.scrollLeft(ModWindow, OGIndex+1)
             else:
-                self.scrollRight(ModWindow, subWindowIndex)
+                self.scrollRight(ModWindow, OGIndex+1)
 
     def scrollRight(self, subWindow, subWindowIndex):
         subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
@@ -582,6 +584,7 @@ class Ui_MainWindow(QMainWindow):
             self.ColorMap = color
         title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
         subWindowIndex = self.titleIndex(title)
+        print(self.windowIndx)
         mydialog = self.mdi.subWindowList()[self.windowIndx]
         mydialog.figure, mydialog.canvas = self.spectroDraw(
             self.signals[subWindowIndex -
@@ -691,7 +694,7 @@ class Ui_MainWindow(QMainWindow):
         self.mdi.subWindowList()[self.windowIndx-1].graphWidget.setYRange(
             self.signals[subWindowIndex-2].min(), self.signals[subWindowIndex-2].max())
         mydialog.graphWidget = self.graphDraw(ffti)
-        mydialog.graphWidget.setXRange(self.graphRangesX[subWindowIndex-2]+1,self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2]-1)
+        mydialog.graphWidget.setXRange(self.graphRangesX[subWindowIndex-2],self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2])
         print(self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2])
         print(len(ffti))
         print(self.graphRangesX[subWindowIndex-2])
