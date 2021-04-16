@@ -31,7 +31,7 @@ import sounddevice as sd
 import soundfile as sf
 import matplotlib.colors as colors
 
-
+#A layout that contains the spectrogram and its sliders
 class SpectroWidget(QWidget):
     def __init__(self, parent=None):
         super(SpectroWidget, self).__init__(parent)
@@ -47,13 +47,14 @@ class SpectroWidget(QWidget):
         self.hbox.addWidget(self.createSlider("Max", 1, ui.intensityMax))
         self.setLayout(self.hbox)
 
+#Create 2 vertical sliders for vMin and vMax
     def createSlider(self, txt, ind, val):
         groupBox = QGroupBox()
 
         self.sliders[ind].setMaximum(ui.intensityMax)
         self.sliders[ind].setMinimum(0)
         self.sliders[ind].setValue(val)
-        self.sliders[ind].setSingleStep(100)
+        self.sliders[ind].setSingleStep(int(ui.intensityMax/10))
         self.sliders[ind].valueChanged.connect(
             lambda: self.changeIntensity(ind))
         attribute = QLabel()
@@ -70,15 +71,36 @@ class SpectroWidget(QWidget):
     def addWidget(self, widget):
         self.hbox.addWidget(widget)
 
+#Change the vMin and vMax values when the sliders are moved
     def changeIntensity(self, ind):
         self.labels[ind].setText(str(self.sliders[ind].value()))
 
         ui.intensityMin = self.sliders[0].value()
         ui.intensityMax = self.sliders[1].value()
 
-        ui.colorSpectro(ui.ColorMap, "1")
+        for i in range(
+            1,int(len(ui.freqs)/2)
+        ):
+            if (ui.freqs[i]<ui.intensityMin or ui.freqs[i]>ui.intensityMax):
+                if i == 0:
+                    continue
+                #Multiply the data by the gain
+                ui.fft[-i] = ui.copyFFT[-i] * 0
+                ui.fft[i] = ui.copyFFT[i] * 0
+                #Get the inverse fourier for the amplified data
+                ui.ffti[i] = (
+                    ui.fft[i] * math.cos(ui.fftphase[i])
+                    + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
+                )
+                ui.ffti[-i] = (
+                    ui.fft[-i] * math.cos(ui.fftphase[-i])
+                    + ui.fft[-i] * math.sin(ui.fftphase[-i]) * 1j
+                )
 
+        ui.updateSpectro()
+        ui.updateGraph()
 
+#A layout that contains the Equalizer window
 class EQWindow(QWidget):
     def __init__(self, parent=None):
         super(EQWindow, self).__init__(parent)
@@ -123,6 +145,7 @@ class EQWindow(QWidget):
 
         return groupBox
 
+#Update  the graph and the spectrogram when the equalizer is used
     def updateWindows(self, ind):
         self.gainValues[ind] = self.sliders[ind].value()
         self.gainLabels[ind].setText(str(float(self.sliders[ind].value())))
@@ -131,8 +154,10 @@ class EQWindow(QWidget):
         ):
             if i == 0:
                 continue
+            #Multiply the data by the gain
             ui.fft[-i] = ui.copyFFT[-i] * self.gainValues[ind]
             ui.fft[i] = ui.copyFFT[i] * self.gainValues[ind]
+            #Get the inverse fourier for the amplified data
             ui.ffti[i] = (
                 ui.fft[i] * math.cos(ui.fftphase[i])
                 + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
@@ -544,14 +569,15 @@ class Ui_MainWindow(QMainWindow):
                 self.windowIndx = itr
                 flag = True
             itr += 1
-        if flag:
-            title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
-            subWindowIndex = self.titleIndex(title)
-            mydialog = self.mdi.subWindowList()[self.windowIndx]
-            mydialog.figure, mydialog.canvas = self.spectroDraw(
-                ffti, title, mydialog.figure, mydialog.canvas
-            )
+    
+        title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
+        subWindowIndex = self.titleIndex(title)
+        mydialog = self.mdi.subWindowList()[self.windowIndx]
+        mydialog.figure, mydialog.canvas = self.spectroDraw(
+            ffti, title, mydialog.figure, mydialog.canvas
+        )
 
+#Change the color palette 
     def colorSpectro(self, color, action):
         if type(action) == type(self.actionViridis):
             self.uncheckColors()
@@ -625,6 +651,7 @@ class Ui_MainWindow(QMainWindow):
             self.fftDraw(
                 self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
+#Checks if the active window is a spectrogram or an equilizer or a graph
     def checkWindow(self, subWindow):
         if subWindow:
             if subWindow.windowTitle().find("Time-FFT") != -1:
@@ -646,6 +673,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionSave_as.setEnabled(True)
 
     # Graphs
+    # Update the 'modified' graph of the signal according to the equilizer
     def updateGraph(self):
         ffti = []
         ffti = np.real_if_close(np.array(np.fft.ifft(self.ffti)))
@@ -662,10 +690,11 @@ class Ui_MainWindow(QMainWindow):
         subWindowIndex = self.titleIndex(title)
         mydialog = self.mdi.subWindowList()[self.windowIndx]
         self.mdi.subWindowList()[
-            self.windowIndx-1].graphWidget.setXRange(0, len(self.signals[subWindowIndex-2]))
+            self.windowIndx-1].graphWidget.setXRange(self.graphRangesX[subWindowIndex-2],self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2])
         self.mdi.subWindowList()[self.windowIndx-1].graphWidget.setYRange(
             self.signals[subWindowIndex-2].min(), self.signals[subWindowIndex-2].max())
         mydialog.graphWidget = self.graphDraw(ffti)
+        mydialog.graphWidget.setXRange(self.graphRangesX[subWindowIndex-2],self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2])
         mydialog.graphWidget.setLimits(
             xMin=0, xMax=len(ffti), yMin=min(ffti), yMax=max(ffti)
         )
@@ -673,6 +702,7 @@ class Ui_MainWindow(QMainWindow):
         self.signals[subWindowIndex - 1] = ffti
         write(r"test.wav", self.sampling_rate, ffti.astype(np.float64))
 
+# Graph the fft of the signal
     def fftDraw(self, signal, title):
         Amp = abs(np.fft.fft(signal))
         frequencies = np.fft.fftfreq(len(Amp), (1.0 / self.sampling_rate))
