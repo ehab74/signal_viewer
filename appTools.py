@@ -183,9 +183,10 @@ class MainWind(QtWidgets.QMainWindow):
 class Ui_MainWindow(QMainWindow):
     ColorMap = "viridis"
     signals = []  # stores signals arrays
-    graphRanges = (
+    graphRangesX = (
         []
     )  # checkpoints for the latest zoom/seek action on the graph's X-axis for all subwindows
+    graphRangesY = []
     zoomRanges = []  # Stores the shown range of the X-axis for each graph
     deletedWinds = []  # Stores the closed windows to erase them from the subWindowList
     windowsCount = 0  # Apply an index for each window
@@ -309,10 +310,11 @@ class Ui_MainWindow(QMainWindow):
                 if widget.windowTitle().startswith(f"{index}"):
                     return (widget, 0, False)
 
-    def initialize(self, sigInit, zoomInit, rangeInit):
+    def initialize(self, sigInit, zoomInit, rangeXInit,rangeYInit):
         self.signals.append(sigInit)
         self.zoomRanges.append(zoomInit)
-        self.graphRanges.append(rangeInit)
+        self.graphRangesX.append(rangeXInit)
+        self.graphRangesY.append(rangeYInit)
 
     # PDF
     def generatePDF(self, widget_list, filename):
@@ -429,11 +431,11 @@ class Ui_MainWindow(QMainWindow):
 
     def scrollRight(self, subWindow, subWindowIndex):
         subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
-        self.graphRanges[subWindowIndex - 1] += 100
+        self.graphRangesX[subWindowIndex - 1] += 100
 
     def scrollLeft(self, subWindow, subWindowIndex):
         subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-        self.graphRanges[subWindowIndex - 1] += -100
+        self.graphRangesX[subWindowIndex - 1] += -100
 
     def zoomIn(self, subWindow, subWindowIndex):
         self.zoomRanges[subWindowIndex - 1] = (
@@ -445,7 +447,7 @@ class Ui_MainWindow(QMainWindow):
         if self.zoomRanges[subWindowIndex - 1] > 50:
             subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
             self.zoomRanges[subWindowIndex - 1] *= 0.5
-            self.graphRanges[subWindowIndex - 1] = subWindow.graphWidget.viewRange()[0][
+            self.graphRangesX[subWindowIndex - 1] = subWindow.graphWidget.viewRange()[0][
                 0
             ]
 
@@ -469,7 +471,7 @@ class Ui_MainWindow(QMainWindow):
         if self.zoomRanges[subWindowIndex - 1] < len(self.signals[subWindowIndex - 1]):
             subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
             self.zoomRanges[subWindowIndex - 1] *= 2
-            self.graphRanges[subWindowIndex - 1] = subWindow.graphWidget.viewRange()[0][
+            self.graphRangesX[subWindowIndex - 1] = subWindow.graphWidget.viewRange()[0][
                 0
             ]
 
@@ -503,23 +505,23 @@ class Ui_MainWindow(QMainWindow):
 
         step = 0  # Cumulative variable that increases with time
         # Check if this is the max limit of the signal is reached or not
-        while step + 40 + self.graphRanges[subWindowIndex - 1] <= len(
+        while step + 40 + self.graphRangesX[subWindowIndex - 1] <= len(
             self.signals[subWindowIndex - 1]
             # while subWindow.graphWidget.viewRange()[0][1] < len(self.signals[subWindowIndex-1]):
         ):
 
             if not self.plays:
-                self.graphRanges[subWindowIndex - 1] += step
+                self.graphRangesX[subWindowIndex - 1] += step
                 break
             step += 40 * self.speedFactor
             self.playProcess(subWindow, subWindowIndex, step)
 
     def playProcess(self, subWindow, subWindowIndex, step):
         subWindow.graphWidget.setXRange(
-            self.graphRanges[subWindowIndex - 1] + step,
+            self.graphRangesX[subWindowIndex - 1] + step,
             self.zoomRanges[subWindowIndex - 1]
             + step
-            + self.graphRanges[subWindowIndex - 1],
+            + self.graphRangesX[subWindowIndex - 1],
         )
 
         QtWidgets.QApplication.processEvents()
