@@ -400,12 +400,12 @@ class Ui_MainWindow(QMainWindow):
         OGWindow, ModWindow, flag = self.getWindow(
             subwindow.windowTitle(), subWindowIndex
         )
-        if type == 1:
+        if type == 'in':
             self.zoomIn(OGWindow, subWindowIndex)
         else:
             self.zoomOut(OGWindow, subWindowIndex)
         if flag:
-            if type == 1:
+            if type == 'in':
                 self.zoomIn(ModWindow, subWindowIndex)
             else:
                 self.zoomOut(ModWindow, subWindowIndex)
@@ -415,12 +415,12 @@ class Ui_MainWindow(QMainWindow):
         OGWindow, ModWindow, flag = self.getWindow(
             subwindow.windowTitle(), subWindowIndex
         )
-        if type == 1:
+        if type == 'left':
             self.scrollLeft(OGWindow, subWindowIndex)
         else:
             self.scrollRight(OGWindow, subWindowIndex)
         if flag:
-            if type == 1:
+            if type == 'left':
                 self.scrollLeft(ModWindow, subWindowIndex)
             else:
                 self.scrollRight(ModWindow, subWindowIndex)
@@ -1076,10 +1076,10 @@ class Ui_MainWindow(QMainWindow):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.actionOpen.triggered.connect(lambda: self.browsefiles())
         self.actionZoomIn.triggered.connect(
-            lambda: self.doubleZoom(self.mdi.activeSubWindow(), 1)
+            lambda: self.doubleZoom(self.mdi.activeSubWindow(), 'in')
         )
         self.actionZoomOut.triggered.connect(
-            lambda: self.doubleZoom(self.mdi.activeSubWindow(), -1)
+            lambda: self.doubleZoom(self.mdi.activeSubWindow(), 'out')
         )
         self.actionPlaySound.triggered.connect(
             lambda: self.playSound(self.mdi.activeSubWindow())
@@ -1093,10 +1093,10 @@ class Ui_MainWindow(QMainWindow):
             lambda: self.checkTool(self.mdi.activeSubWindow(), "f")
         )
         self.actionForward.triggered.connect(
-            lambda: self.doubleScroll(self.mdi.activeSubWindow(), -1)
+            lambda: self.doubleScroll(self.mdi.activeSubWindow(), 'right')
         )
         self.actionBackward.triggered.connect(
-            lambda: self.doubleScroll(self.mdi.activeSubWindow(), 1)
+            lambda: self.doubleScroll(self.mdi.activeSubWindow(), 'left')
         )
         self.actionSave_as.triggered.connect(
             lambda: self.printPDF(self.mdi.subWindowList())
