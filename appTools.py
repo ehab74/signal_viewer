@@ -566,16 +566,13 @@ class Ui_MainWindow(QMainWindow):
                 widget.windowTitle().find("modified") != -1
                 and widget.windowTitle().find("Time-FFT") != -1
             ):
-                self.windowIndx = itr
-                flag = True
-            itr += 1
-    
-        title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
-        subWindowIndex = self.titleIndex(title)
-        mydialog = self.mdi.subWindowList()[self.windowIndx]
-        mydialog.figure, mydialog.canvas = self.spectroDraw(
-            ffti, title, mydialog.figure, mydialog.canvas
-        )
+            
+                title = widget.windowTitle()
+                subWindowIndex = self.titleIndex(title)
+                widget.figure, widget.canvas = self.spectroDraw(
+                    ffti, title, widget.figure, widget.canvas
+                )
+                break
 
 #Change the color palette 
     def colorSpectro(self, color, action):
@@ -694,10 +691,14 @@ class Ui_MainWindow(QMainWindow):
         self.mdi.subWindowList()[self.windowIndx-1].graphWidget.setYRange(
             self.signals[subWindowIndex-2].min(), self.signals[subWindowIndex-2].max())
         mydialog.graphWidget = self.graphDraw(ffti)
-        mydialog.graphWidget.setXRange(self.graphRangesX[subWindowIndex-2],self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2])
+        mydialog.graphWidget.setXRange(self.graphRangesX[subWindowIndex-2]+1,self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2]-1)
+        print(self.graphRangesX[subWindowIndex-2]+self.zoomRanges[subWindowIndex-2])
+        print(len(ffti))
+        print(self.graphRangesX[subWindowIndex-2])
         mydialog.graphWidget.setLimits(
             xMin=0, xMax=len(ffti), yMin=min(ffti), yMax=max(ffti)
         )
+        print(mydialog.graphWidget.viewRange())
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = ffti
         write(r"test.wav", self.sampling_rate, ffti.astype(np.float64))
@@ -805,7 +806,7 @@ class Ui_MainWindow(QMainWindow):
             filename, sr=None, mono=True, offset=0.0, duration=None
         )
 
-        self.initialize(samples, 400, 0)
+        self.initialize(samples, len(samples), 0)
 
         self.ffti = np.fft.fft(samples)
         self.fftphase = np.angle(self.ffti)
@@ -818,7 +819,7 @@ class Ui_MainWindow(QMainWindow):
         self.Graph(samples, signal_label)
         write(r"original.wav", self.sampling_rate, samples.astype(np.float64))
 
-        self.initialize(samples, 400, 0)
+        self.initialize(samples, len(samples), 0)
         self.Graph(samples, signal_label + " modified")
         self.equalizer()
         write(r"test.wav", self.sampling_rate, samples.astype(np.float64))
