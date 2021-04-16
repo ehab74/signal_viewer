@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import sounddevice as sd
 import soundfile as sf
+import matplotlib.colors as colors
 
 
 class SpectroWidget(QWidget):
@@ -70,7 +71,7 @@ class SpectroWidget(QWidget):
 
     def changeIntensity(self, ind):
         self.labels[ind].setText(str(self.sliders[ind].value()))
-
+        
         ui.intensityMin = self.sliders[0].value()
         ui.intensityMax = self.sliders[1].value()
 
@@ -91,13 +92,13 @@ class EQWindow(QWidget):
             self.gainLabels.append(QLabel)
             self.bands.append(0)
             self.gainValues.append(0.0)
-            grid.addWidget(self.createSlider(int(bandLength * (i + 1)), i), 0, i)
+            grid.addWidget(self.createSlider(int(bandLength * (i + 1)), i,int((ui.freqs.max()/10)*(i+1))), 0, i)
 
         self.setLayout(grid)
 
         self.setWindowTitle("Equalizer")
 
-    def createSlider(self, txt, ind):
+    def createSlider(self, txt, ind, label):
         groupBox = QGroupBox()
 
         self.sliders[ind].setMaximum(5)
@@ -109,7 +110,7 @@ class EQWindow(QWidget):
         self.sliders[ind].valueChanged.connect(lambda: self.updateWindows(ind))
         self.bands[ind] = txt
         freq = QLabel()
-        freq.setText(str(txt) + " Hz")
+        freq.setText(str(label) + " Hz")
         self.gainLabels[ind] = QLabel()
         self.gainLabels[ind].setText("1.0")
         vbox = QVBoxLayout()
@@ -565,6 +566,7 @@ class Ui_MainWindow(QMainWindow):
         f, t, Sxx = sig.spectrogram(
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
         )
+   
         ax = figure.add_subplot()
         img = ax.pcolormesh(
             t,
@@ -572,7 +574,7 @@ class Ui_MainWindow(QMainWindow):
             10 * np.log10(Sxx),
             cmap=self.ColorMap,
             vmin=self.intensityMin,
-            vmax=self.intensityMax,shading = "gouraud"
+            vmax=self.intensityMax
         )
         figure.colorbar(img, ax=ax)
         canvas.draw()
@@ -595,6 +597,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
         spectroWidget = SpectroWidget()
         spectroWidget.addWidget(mydialog.canvas)
+
         mydialog.setWidget(spectroWidget)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
@@ -758,14 +761,10 @@ class Ui_MainWindow(QMainWindow):
 
         self.initialize(samples, 400, 0)
 
-        duration = len(samples) / self.sampling_rate
-        time = np.arange(0, duration, 1 / self.sampling_rate)
-        # librosa.display.waveplot(y=samples, sr=self.sampling_rate)
-        frequency = []
-        self.fftphase = np.angle(np.fft.fft(samples))
-        self.fft = abs(np.fft.fft(samples))
-        self.copyFFT = abs(np.fft.fft(samples))
         self.ffti = np.fft.fft(samples)
+        self.fftphase = np.angle(self.ffti)
+        self.fft = abs(self.ffti)
+        self.copyFFT = abs(self.ffti)
         self.freqs = np.fft.fftfreq(len(self.fft), (1.0 / self.sampling_rate))
 
         self.Graph(samples, signal_label)
@@ -773,7 +772,6 @@ class Ui_MainWindow(QMainWindow):
 
         self.initialize(samples, 400, 0)
         self.Graph(samples, signal_label + " modified")
-        # write("test.wav", self.sampling_rate, s)
         self.equalizer()
         write(r"test.wav", self.sampling_rate, samples.astype(np.float64))
 
