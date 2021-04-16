@@ -310,11 +310,11 @@ class Ui_MainWindow(QMainWindow):
                 if widget.windowTitle().startswith(f"{index}"):
                     return (widget, 0, False)
 
-    def initialize(self, sigInit, zoomInit, rangeXInit,rangeYInit):
+    def initialize(self, sigInit, zoomInit, rangeXInit):
         self.signals.append(sigInit)
         self.zoomRanges.append(zoomInit)
         self.graphRangesX.append(rangeXInit)
-        self.graphRangesY.append(rangeYInit)
+        # self.graphRangesY.append(rangeYInit)
 
     # PDF
     def generatePDF(self, widget_list, filename):
