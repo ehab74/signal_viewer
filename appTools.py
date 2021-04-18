@@ -27,6 +27,7 @@ from scipy.io.wavfile import write
 from scipy import signal as sig
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+
 import sounddevice as sd
 import soundfile as sf
 import matplotlib.colors as colors
@@ -51,7 +52,7 @@ class SpectroWidget(QWidget):
     def createSlider(self, txt, ind, val):
         groupBox = QGroupBox()
 
-        self.sliders[ind].setMaximum(ui.f.max()-7)
+        self.sliders[ind].setMaximum(ui.f.max() - 10)
         self.sliders[ind].setMinimum(0)
         self.sliders[ind].setValue(val)
         self.sliders[ind].setSingleStep(int(ui.f.max() / 10))
@@ -72,34 +73,11 @@ class SpectroWidget(QWidget):
 
     # Change the vMin and vMax values when the sliders are moved
     def changeIntensity(self, ind):
-        self.labels[ind].setText(str(self.sliders[ind].value()+7))
+        self.labels[ind].setText(str(self.sliders[ind].value() + 10))
 
         ui.intensityMin = self.sliders[0].value()
         ui.intensityMax = self.sliders[1].value()
-        print(ui.intensityMax)
 
-        for i in range(1, int(len(ui.freqs) / 2)):
-            if ui.freqs[i] < ui.intensityMin or ui.freqs[i] > ui.intensityMax:
-                if i == 0:
-                    continue
-                # Multiply the data by the gain
-                ui.fft[-i] = ui.copyFFT[-i] * 0
-                ui.fft[i] = ui.copyFFT[i] * 0
-                # Get the inverse fourier for the amplified data
-            else:
-                ui.fft[-i] = ui.copyFFT[-i]
-                ui.fft[i] = ui.copyFFT[i]
-            ui.ffti[i] = (
-                ui.fft[i] * math.cos(ui.fftphase[i])
-                + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
-            )
-            ui.ffti[-i] = (
-                ui.fft[-i] * math.cos(ui.fftphase[-i])
-                + ui.fft[-i] * math.sin(ui.fftphase[-i]) * 1j
-                )
-
-        if ui.mdi.activeSubWindow().windowTitle().find("modified")!=-1:
-            ui.updateGraph()
         ui.updateSpectro()
 
 
@@ -221,6 +199,7 @@ class Ui_MainWindow(QMainWindow):
     graphRangesY = []
     zoomRanges = []  # Stores the shown range of the X-axis for each graph
     deletedWinds = []  # Stores the closed windows to erase them from the subWindowList
+    intensity = []
     windowsCount = 0  # Apply an index for each window
     activeWinds = 0  # Stores the number of active windows
     closeMssgBox = False  # Checks if a message box should appear on close event
@@ -315,7 +294,10 @@ class Ui_MainWindow(QMainWindow):
         # Extracts the index of the subwindow from the window title and checks if the window is a spectrogram or a normal graph
         startInd = 0
         if subWindowTitle.find("Time-FFT") != -1:
-            startInd = 12
+            if subWindowTitle[1] == "#":
+                startInd = 12
+            else:
+                startInd = 13
 
         if subWindowTitle[1] != "#":
             subWindowIndex = int(subWindowTitle[startInd]) * 10 + int(
@@ -374,11 +356,11 @@ class Ui_MainWindow(QMainWindow):
             itr += 1
         titlesList.sort()
         for title in titlesList:
-            windowIndx = self.titleIndex(title[0])
+            subWindowIndex = self.titleIndex(title[0])
             if title[0][-1] != "x":
                 # The widgets are transformed into images to get inserted into the PDF
-                graphPlot = self.graphDraw(self.signals[windowIndx - 1])
-                imgName = f"fileName{str(windowIndx)}.png"
+                graphPlot = self.graphDraw(self.signals[subWindowIndex - 1])
+                imgName = f"fileName{str(subWindowIndex)}.png"
                 exporter = pg.exporters.ImageExporter(graphPlot.plotItem)
                 exporter.parameters()["width"] = 250
                 exporter.parameters()["height"] = 250
@@ -399,12 +381,12 @@ class Ui_MainWindow(QMainWindow):
                 os.remove(imgName)
             else:
                 fig, _ = self.spectroDraw(
-                    self.signals[windowIndx - 1],
+                    self.signals[subWindowIndex - 1],
                     title[0],
                     widget_list[title[1]].figure,
                     widget_list[title[1]].canvas,
                 )
-                imgName = f".fileName{str(windowIndx + 99)}.png"
+                imgName = f".fileName{str(subWindowIndex + 99)}.png"
                 fig.savefig(imgName)
                 pdf.image(
                     imgName,
@@ -564,36 +546,25 @@ class Ui_MainWindow(QMainWindow):
 
     # Spectrogram
     def updateSpectro(self):
-        ffti = []
-        ffti = np.real_if_close(np.array(np.fft.ifft(self.ffti)))
-        flag = False
-        itr = 0
-        
         activeWindowTitle = self.mdi.activeSubWindow().windowTitle()
-        if activeWindowTitle=="Equalizer":
-            for widget in self.mdi.subWindowList():
-                    if widget.windowTitle().find("modified")!=-1 and widget.windowTitle().find("Time-FFT")!=-1:
-                        title = widget.windowTitle()
-                        subWindowIndex = self.titleIndex(title)
-                        widget.figure, widget.canvas = self.spectroDraw(
-                            ffti, title, widget.figure, widget.canvas
-                        )
-        elif activeWindowTitle.find("modified")!=-1:
-            for widget in self.mdi.subWindowList():
-                    if widget.windowTitle().find("modified")!=-1 and widget.windowTitle().find("Time-FFT")!=-1:
-                        title = widget.windowTitle()
-                        subWindowIndex = self.titleIndex(title)
-                        widget.figure, widget.canvas = self.spectroDraw(
-                            ffti, title, widget.figure, widget.canvas
-                        )
-        else:
-            for widget in self.mdi.subWindowList():
-                    if widget.windowTitle().find("Time-FFT")!=-1:
-                        title = widget.windowTitle()
-                        subWindowIndex = self.titleIndex(title)
-                        widget.figure, widget.canvas = self.spectroDraw(
-                            ffti, title, widget.figure, widget.canvas
-                        )
+        flag = (activeWindowTitle == "Equalizer" or activeWindowTitle.find("modified")!=-1)
+
+        itr=0
+        for widget in self.mdi.subWindowList():
+            if (
+                ((flag and widget.windowTitle().find("modified") != -1)
+                or (not flag and widget.windowTitle().find("modified")==-1))
+                and widget.windowTitle().find("Time-FFT") != -1 and itr not in self.deletedWinds
+            ):
+                title = widget.windowTitle()
+                subWindowIndex = self.titleIndex(title)
+                widget.figure, widget.canvas = self.spectroDraw(
+                    self.signals[subWindowIndex - 1],
+                    title,
+                    widget.figure,
+                    widget.canvas,
+                )
+            itr+=1
 
     # Change the color palette
     def colorSpectro(self, color, action):
@@ -610,18 +581,23 @@ class Ui_MainWindow(QMainWindow):
 
     def spectroDraw(self, signal, title, figure, canvas):
         # Draws the spectrogram of the signal
+        windowTitle = self.mdi.activeSubWindow().windowTitle()
         figure.clear()
-        self.f, t, Sxx = sig.spectrogram(
+        f, t, Sxx = sig.spectrogram(
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
         )
 
         ax = figure.add_subplot()
-        ax.set_ylim([self.intensityMin,self.intensityMax])
+        # if windowTitle.find(".wav") != -1 or windowTitle=="Equalizer":
+        if self.intensityMax==-1:
+            ax.set_ylim(0, self.intensity.max())
+        else:
+            ax.set_ylim(self.intensityMin, self.intensityMax)
         # self.intensityMin = f.min()
         # self.intensityMax = f.max()
         img = ax.pcolormesh(
             t,
-            self.f,
+            self.intensity,
             10 * np.log10(Sxx),
             cmap=self.ColorMap
             # vmin=self.intensityMin,
@@ -639,8 +615,6 @@ class Ui_MainWindow(QMainWindow):
         mydialog.figure, mydialog.canvas = self.spectroDraw(
             signal, title, figure, canvas
         )
-        if self.mdi.activeSubWindow().windowTitle().find(".wav")!=-1:
-            mydialog.figure.get_axes()[0].set_ylim([0, self.f.max()])
         icon = QtGui.QIcon()
 
         icon.addPixmap(
@@ -665,7 +639,7 @@ class Ui_MainWindow(QMainWindow):
             self.initialize(0, 0, 0)
             self.Spectrogram(self.signals[subWindowIndex - 1], subWindow.windowTitle())
         else:
-            self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            self.intensityftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     # Checks if the active window is a spectrogram or an equilizer or a graph
     def checkWindow(self, subWindow):
@@ -692,24 +666,25 @@ class Ui_MainWindow(QMainWindow):
     # Update the 'modified' graph of the signal according to the equilizer
     def updateGraph(self):
         ffti = []
-        ffti = np.real_if_close(np.array(np.fft.ifft(self.ffti)))
+        ffti = np.real_if_close(np.array(np.fft.ifft(self.intensityfti)))
 
-        itr = 0
+        windowsItr = 0
         for widget in self.mdi.subWindowList():
             if (
                 widget.windowTitle().find("modified") != -1
-                and widget.windowTitle().find("Time-FFT") == -1
+                and widget.windowTitle().find("Time-FFT") == -1 and windowsItr not in self.deletedWinds
             ):
-                self.windowIndx = itr
-            itr += 1
-        title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
+                break
+            windowsItr += 1
+
+        title = self.mdi.subWindowList()[windowsItr].windowTitle()
         subWindowIndex = self.titleIndex(title)
-        mydialog = self.mdi.subWindowList()[self.windowIndx]
-        self.mdi.subWindowList()[self.windowIndx - 1].graphWidget.setXRange(
+        mydialog = self.mdi.subWindowList()[windowsItr]
+        self.mdi.subWindowList()[windowsItr - 1].graphWidget.setXRange(
             self.graphRangesX[subWindowIndex - 2],
             self.graphRangesX[subWindowIndex - 2] + self.zoomRanges[subWindowIndex - 2],
         )
-        self.mdi.subWindowList()[self.windowIndx - 1].graphWidget.setYRange(
+        self.mdi.subWindowList()[windowsItr - 1].graphWidget.setYRange(
             self.signals[subWindowIndex - 2].min(),
             self.signals[subWindowIndex - 2].max(),
         )
@@ -717,9 +692,6 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget.setXRange(
             self.graphRangesX[subWindowIndex - 2],
             self.graphRangesX[subWindowIndex - 2] + self.zoomRanges[subWindowIndex - 2],
-        )
-        mydialog.graphWidget.setLimits(
-            xMin=0, xMax=len(ffti), yMin=min(ffti), yMax=max(ffti)
         )
         mydialog.setWidget(mydialog.graphWidget)
         self.signals[subWindowIndex - 1] = ffti
@@ -759,6 +731,9 @@ class Ui_MainWindow(QMainWindow):
         graphWidget = pg.PlotWidget()
         graphWidget.setBackground("w")
         graphWidget.plot(signal, pen="b")
+        graphWidget.setLimits(
+            xMin=0, xMax=len(signal), yMin=min(signal), yMax=max(signal)
+        )
         graphWidget.showGrid(x=True, y=True)
         return graphWidget
 
@@ -776,9 +751,6 @@ class Ui_MainWindow(QMainWindow):
         mydialog.graphWidget = self.graphDraw(signal)
         if title.find(".wav") == -1:
             mydialog.graphWidget.setXRange(0, 400, padding=0)
-        mydialog.graphWidget.setLimits(
-            xMin=0, xMax=len(signal), yMin=min(signal), yMax=max(signal)
-        )
         mydialog.setWidget(mydialog.graphWidget)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
@@ -829,23 +801,25 @@ class Ui_MainWindow(QMainWindow):
 
         self.initialize(samples, len(samples), 0)
 
-        self.ffti = np.fft.fft(samples)
-        self.fftphase = np.angle(self.ffti)
-        self.fft = abs(self.ffti)
-        self.copyFFT = abs(self.ffti)
-        self.freqs = np.fft.fftfreq(len(self.fft), (1.0 / self.sampling_rate))
+        self.intensityfti = np.fft.fft(samples)
+        self.intensityftphase = np.angle(self.intensityfti)
+        self.intensityft = abs(self.intensityfti)
+        self.copyFFT = abs(self.intensityfti)
+        self.intensityreqs = np.fft.fftfreq(len(self.intensityft), (1.0 / self.sampling_rate))
         self.intensityMin = -1
         self.intensityMax = -1
 
+        self.equalizer()
         self.Graph(samples, signal_label)
         write(r"original.wav", self.sampling_rate, samples.astype(np.float64))
 
         self.initialize(samples, len(samples), 0)
         self.Graph(samples, signal_label + " modified")
-        self.equalizer()
         write(r"test.wav", self.sampling_rate, samples.astype(np.float64))
+        self.mdi.cascadeSubWindows()
 
     def browsefiles(self):
+        # self.mdi.closeAllSubWindows()
         self.closeMssgBox = True
         fname = QFileDialog.getOpenFileName(
             self, "Open file", "../", " *.wav;;" " *.edf;;" "*.csv;;" " *.txt;;"
