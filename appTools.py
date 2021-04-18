@@ -45,17 +45,17 @@ class SpectroWidget(QWidget):
             self.labels.append(QLabel)
             self.values.append(0.0)
         self.hbox.addWidget(self.createSlider("Min", 0, 0))
-        self.hbox.addWidget(self.createSlider("Max", 1, ui.f.max()))
+        self.hbox.addWidget(self.createSlider("Max", 1, 2))
         self.setLayout(self.hbox)
 
     # Create 2 vertical sliders for vMin and vMax
     def createSlider(self, txt, ind, val):
         groupBox = QGroupBox()
 
-        self.sliders[ind].setMaximum(ui.f.max() - 10)
+        self.sliders[ind].setMaximum(10)
         self.sliders[ind].setMinimum(0)
         self.sliders[ind].setValue(val)
-        self.sliders[ind].setSingleStep(int(ui.f.max() / 10))
+        self.sliders[ind].setSingleStep(1)
         self.sliders[ind].valueChanged.connect(lambda: self.changeIntensity(ind))
         attribute = QLabel()
         attribute.setText(txt)
@@ -90,7 +90,8 @@ class EQWindow(QWidget):
         self.bands = []
         self.gainValues = []
         grid = QGridLayout()
-        bandLength = (len(ui.freqs) // 2) / 10
+        self.index = len(ui.mdi.subWindowList())-1 - ui.EQcount
+        bandLength = (len(ui.freqs[self.index]) // 2) / 10
         for i in range(10):
             self.sliders.append(QSlider(Qt.Vertical))
             self.gainLabels.append(QLabel)
@@ -98,7 +99,7 @@ class EQWindow(QWidget):
             self.gainValues.append(0.0)
             grid.addWidget(
                 self.createSlider(
-                    int(bandLength * (i + 1)), i, int((ui.freqs.max() / 10) * (i + 1))
+                    int(bandLength * (i + 1)), i, int((ui.freqs[self.index].max() / 10) * (i + 1))
                 ),
                 0,
                 i,
@@ -136,22 +137,23 @@ class EQWindow(QWidget):
         self.gainValues[ind] = self.sliders[ind].value()
         self.gainLabels[ind].setText(str(float(self.sliders[ind].value())))
         for i in range(
-            (self.bands[ind] - int((len(ui.freqs) // 2) / 10)), self.bands[ind]
+            (self.bands[ind] - int((len(ui.freqs[self.index]) // 2) / 10)), self.bands[ind]
         ):
             if i == 0:
                 continue
             # Multiply the data by the gain
-            ui.fft[-i] = ui.copyFFT[-i] * self.gainValues[ind]
-            ui.fft[i] = ui.copyFFT[i] * self.gainValues[ind]
+            ui.fftAbs[self.index][-i] = ui.copyFFT[self.index][-i] * self.gainValues[ind]
+            ui.fftAbs[self.index][i] = ui.copyFFT[self.index][i] * self.gainValues[ind]
             # Get the inverse fourier for the amplified data
-            ui.ffti[i] = (
-                ui.fft[i] * math.cos(ui.fftphase[i])
-                + ui.fft[i] * math.sin(ui.fftphase[i]) * 1j
+            ui.fft[self.index][i] = (
+                ui.fftAbs[self.index][i] * math.cos(ui.fftPhase[self.index][i])
+                + ui.fftAbs[self.index][i] * math.sin(ui.fftPhase[self.index][i]) * 1j
             )
-            ui.ffti[-i] = (
-                ui.fft[-i] * math.cos(ui.fftphase[-i])
-                + ui.fft[-i] * math.sin(ui.fftphase[-i]) * 1j
+            ui.fft[self.index][-i] = (
+                ui.fftAbs[self.index][-i] * math.cos(ui.fftPhase[self.index][-i])
+                + ui.fftAbs[self.index][-i] * math.sin(ui.fftPhase[self.index][-i]) * 1j
             )
+          
         ui.updateGraph()
         ui.updateSpectro()
 
@@ -200,6 +202,12 @@ class Ui_MainWindow(QMainWindow):
     zoomRanges = []  # Stores the shown range of the X-axis for each graph
     deletedWinds = []  # Stores the closed windows to erase them from the subWindowList
     intensity = []
+    fft = []
+    fftAbs = []
+    fftPhase = []
+    freqs = []
+    copyFFT = []
+    EQcount = 0
     windowsCount = 0  # Apply an index for each window
     activeWinds = 0  # Stores the number of active windows
     closeMssgBox = False  # Checks if a message box should appear on close event
@@ -218,6 +226,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWidget(self.EQWind)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
+        self.EQcount+=1
 
     def hideGraphIcons(self):
         self.actionZoomIn.setEnabled(False)
@@ -322,11 +331,21 @@ class Ui_MainWindow(QMainWindow):
                 if widget.windowTitle().startswith(f"{index}"):
                     return (widget, 0, False)
 
-    def initialize(self, sigInit, zoomInit, rangeXInit):
+    def initialize(
+        self, sigInit, zoomInit, rangeXInit, intensityMin, intensityMax, freqMax
+    ):
         self.signals.append(sigInit)
         self.zoomRanges.append(zoomInit)
         self.graphRangesX.append(rangeXInit)
-        # self.graphRangesY.append(rangeYInit)
+        self.intensity.append([intensityMin, intensityMax, freqMax])
+
+    def fftInitialize (self,fft,fftAbs,fftPhase,freqs,copyFFT):
+        self.fft.append(fft)
+        self.fftAbs.append(fftAbs)
+        self.fftPhase.append(fftPhase)
+        self.freqs.append(freqs)
+        self.copyFFT.append(copyFFT)
+            
 
     # PDF
     def generatePDF(self, widget_list, filename):
@@ -547,14 +566,19 @@ class Ui_MainWindow(QMainWindow):
     # Spectrogram
     def updateSpectro(self):
         activeWindowTitle = self.mdi.activeSubWindow().windowTitle()
-        flag = (activeWindowTitle == "Equalizer" or activeWindowTitle.find("modified")!=-1)
+        flag = (
+            activeWindowTitle == "Equalizer" or activeWindowTitle.find("modified") != -1
+        )
 
-        itr=0
+        itr = 0
         for widget in self.mdi.subWindowList():
             if (
-                ((flag and widget.windowTitle().find("modified") != -1)
-                or (not flag and widget.windowTitle().find("modified")==-1))
-                and widget.windowTitle().find("Time-FFT") != -1 and itr not in self.deletedWinds
+                (
+                    (flag and widget.windowTitle().find("modified") != -1)
+                    or (not flag and widget.windowTitle().find("modified") == -1)
+                )
+                and widget.windowTitle().find("Time-FFT") != -1
+                and itr not in self.deletedWinds
             ):
                 title = widget.windowTitle()
                 subWindowIndex = self.titleIndex(title)
@@ -564,7 +588,7 @@ class Ui_MainWindow(QMainWindow):
                     widget.figure,
                     widget.canvas,
                 )
-            itr+=1
+            itr += 1
 
     # Change the color palette
     def colorSpectro(self, color, action):
@@ -581,7 +605,7 @@ class Ui_MainWindow(QMainWindow):
 
     def spectroDraw(self, signal, title, figure, canvas):
         # Draws the spectrogram of the signal
-        windowTitle = self.mdi.activeSubWindow().windowTitle()
+        # windowTitle = self.mdi.activeSubWindow().windowTitle()
         figure.clear()
         f, t, Sxx = sig.spectrogram(
             signal, fs=200 if title.find(".wav") == -1 else self.sampling_rate
@@ -589,15 +613,24 @@ class Ui_MainWindow(QMainWindow):
 
         ax = figure.add_subplot()
         # if windowTitle.find(".wav") != -1 or windowTitle=="Equalizer":
-        if self.intensityMax==-1:
-            ax.set_ylim(0, self.intensity.max())
+        subWindowIndex = self.titleIndex(title)
+
+        if self.intensity[subWindowIndex - 1][1] == -1:
+            ax.set_ylim(0, f.max())
+            self.intensity[subWindowIndex - 1][1] = f.max()
+            self.intensity[subWindowIndex - 1][2] = f.max()
         else:
-            ax.set_ylim(self.intensityMin, self.intensityMax)
+            self.intensity[subWindowIndex-1][0] = self.intensityMin
+            self.intensity[subWindowIndex-1][1] = self.intensityMax
+            ax.set_ylim(
+                self.intensity[subWindowIndex - 1][0],
+                self.intensity[subWindowIndex - 1][1],
+            )
         # self.intensityMin = f.min()
         # self.intensityMax = f.max()
         img = ax.pcolormesh(
             t,
-            self.intensity,
+            f,
             10 * np.log10(Sxx),
             cmap=self.ColorMap
             # vmin=self.intensityMin,
@@ -609,6 +642,7 @@ class Ui_MainWindow(QMainWindow):
 
     def Spectrogram(self, signal, title):
         # Inserts the drawn spectrogram into a widget
+        subWindowIndex = self.titleIndex(title)
         figure = plt.figure()
         canvas = FigureCanvas(figure)
         mydialog = MdiWind(self)
@@ -623,6 +657,26 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWindowIcon(icon)
         mydialog.setWindowTitle(str(self.windowsCount) + "#Time-FFT: " + title)
         spectroWidget = SpectroWidget()
+
+        for i in range(2):
+
+            spectroWidget.layout().itemAt(i).widget().layout().itemAt(
+                0
+            ).widget().setMaximum(int(self.intensity[subWindowIndex - 1][2]))
+
+            if not i:
+                spectroWidget.layout().itemAt(i).widget().layout().itemAt(
+                    0
+                ).widget().setValue(0)
+            else:
+                spectroWidget.layout().itemAt(i).widget().layout().itemAt(0
+                ).widget().setValue(int(self.intensity[subWindowIndex - 1][2]))
+
+
+            spectroWidget.layout().itemAt(i).widget().layout().itemAt(
+                0
+            ).widget().setSingleStep(int(self.intensity[subWindowIndex - 1][2]/10))
+
         spectroWidget.addWidget(mydialog.canvas)
 
         mydialog.setWidget(spectroWidget)
@@ -636,10 +690,11 @@ class Ui_MainWindow(QMainWindow):
         self.windowsCount = self.windowsCount + 1
 
         if type == "s":
-            self.initialize(0, 0, 0)
+            self.initialize(0, 0, 0, 0, 0, 0)
+            self.fftInitialize(0,0,0,0,0)
             self.Spectrogram(self.signals[subWindowIndex - 1], subWindow.windowTitle())
         else:
-            self.intensityftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
 
     # Checks if the active window is a spectrogram or an equilizer or a graph
     def checkWindow(self, subWindow):
@@ -665,20 +720,23 @@ class Ui_MainWindow(QMainWindow):
     # Graphs
     # Update the 'modified' graph of the signal according to the equilizer
     def updateGraph(self):
-        ffti = []
-        ffti = np.real_if_close(np.array(np.fft.ifft(self.intensityfti)))
 
         windowsItr = 0
         for widget in self.mdi.subWindowList():
             if (
-                widget.windowTitle().find("modified") != -1
-                and widget.windowTitle().find("Time-FFT") == -1 and windowsItr not in self.deletedWinds
+                # widget.windowTitle().find("modified") != -1
+                # and widget.windowTitle().find("Time-FFT") == -1
+                # and windowsItr not in self.deletedWinds
+                self.mdi.activeSubWindow()==widget
             ):
+                windowsItr-=1
                 break
             windowsItr += 1
-
+          
         title = self.mdi.subWindowList()[windowsItr].windowTitle()
         subWindowIndex = self.titleIndex(title)
+        ffti = []
+        ffti = np.real_if_close(np.array(np.fft.ifft(self.fft[subWindowIndex-1])))
         mydialog = self.mdi.subWindowList()[windowsItr]
         self.mdi.subWindowList()[windowsItr - 1].graphWidget.setXRange(
             self.graphRangesX[subWindowIndex - 2],
@@ -701,7 +759,8 @@ class Ui_MainWindow(QMainWindow):
     def fftDraw(self, signal, title):
         Amp = abs(np.fft.fft(signal))
         frequencies = np.fft.fftfreq(len(Amp), (1.0 / self.sampling_rate))
-        self.initialize(Amp, 400, 0)
+        self.initialize(Amp, 400, 0, 0, 0, 0)
+        self.fftInitialize(0,0,0,0,0)
         mydialog = MdiWind(self)
         mydialog.graphWidget = pg.PlotWidget()
         self.subwindow = mydialog.graphWidget
@@ -768,7 +827,8 @@ class Ui_MainWindow(QMainWindow):
             sigbufs[i, :] = f.readSignal(i)
         # Graph each sample in the file
         for i in range(0, n):
-            self.initialize(sigbufs[i], 400, 0)
+            self.initialize(sigbufs[i], 400, 0, 0, -1, 0)
+            self.fftInitialize(0,0,0,0,0)
             self.graphWidget = pg.PlotWidget()
             self.Graph(sigbufs[i], signal_labels[i])
         self.mdi.cascadeSubWindows()
@@ -780,7 +840,8 @@ class Ui_MainWindow(QMainWindow):
             for line in fp:
                 signal.append((line.rstrip().split(" ")[1]))
             data = np.array(signal).astype(np.float)
-            self.initialize(data, 400, 0)
+            self.initialize(data, 400, 0, 0, -1, 0)
+            self.fftInitialize(0,0,0,0,0)
             self.graphWidget = pg.PlotWidget()
             self.Graph(data, signal_label[0:-4])
 
@@ -788,7 +849,8 @@ class Ui_MainWindow(QMainWindow):
         data = pd.read_csv(filename).iloc[:, 1]
         signal_label = os.path.basename(filename)
         array = data.to_numpy()
-        self.initialize(array, 400, 0)
+        self.initialize(array, 400, 0, 0, -1, 0)
+        self.fftInitialize(0,0,0,0,0)
         self.graphWidget = pg.PlotWidget()
         self.Graph(array, signal_label[0:-4])
 
@@ -799,22 +861,25 @@ class Ui_MainWindow(QMainWindow):
             filename, sr=None, mono=True, offset=0.0, duration=None
         )
 
-        self.initialize(samples, len(samples), 0)
+        self.initialize(samples, len(samples), 0, 0, -1, 0)
 
-        self.intensityfti = np.fft.fft(samples)
-        self.intensityftphase = np.angle(self.intensityfti)
-        self.intensityft = abs(self.intensityfti)
-        self.copyFFT = abs(self.intensityfti)
-        self.intensityreqs = np.fft.fftfreq(len(self.intensityft), (1.0 / self.sampling_rate))
-        self.intensityMin = -1
-        self.intensityMax = -1
+        fft = np.fft.fft(samples)
+        fftPhase = np.angle(fft)
+        fftAbs = abs(fft)
+        copyFFT = abs(fft)
+        freqs = np.fft.fftfreq(len(fft), (1.0 / self.sampling_rate))
 
-        self.equalizer()
+        print(fftAbs[1])
+
+        self.fftInitialize(0,0,0,0,0)
+
         self.Graph(samples, signal_label)
         write(r"original.wav", self.sampling_rate, samples.astype(np.float64))
 
-        self.initialize(samples, len(samples), 0)
+        self.initialize(samples, len(samples), 0, 0, -1, 0)
+        self.fftInitialize(fft,fftAbs,fftPhase,freqs,copyFFT)
         self.Graph(samples, signal_label + " modified")
+        self.equalizer()
         write(r"test.wav", self.sampling_rate, samples.astype(np.float64))
         self.mdi.cascadeSubWindows()
 
