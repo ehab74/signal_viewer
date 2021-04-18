@@ -82,8 +82,6 @@ class SpectroWidget(QWidget):
             1,int(len(ui.freqs)/2)
         ):
             if (ui.freqs[i]<ui.intensityMin or ui.freqs[i]>ui.intensityMax):
-                if i == 0:
-                    continue
                 #Multiply the data by the gain
                 ui.fft[-i] = ui.copyFFT[-i] * 0
                 ui.fft[i] = ui.copyFFT[i] * 0
@@ -234,6 +232,7 @@ class Ui_MainWindow(QMainWindow):
         mydialog.setWidget(self.EQWind)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
+
 
     def hideGraphIcons(self):
         self.actionZoomIn.setEnabled(False)
@@ -565,17 +564,13 @@ class Ui_MainWindow(QMainWindow):
             if (
                 widget.windowTitle().find("modified") != -1
                 and widget.windowTitle().find("Time-FFT") != -1
-            ):
-                self.windowIndx = itr
-                flag = True
-            itr += 1
-    
-        title = self.mdi.subWindowList()[self.windowIndx].windowTitle()
-        subWindowIndex = self.titleIndex(title)
-        mydialog = self.mdi.subWindowList()[self.windowIndx]
-        mydialog.figure, mydialog.canvas = self.spectroDraw(
-            ffti, title, mydialog.figure, mydialog.canvas
-        )
+            ):    
+                title = widget.windowTitle()
+                widget.figure, widget.canvas = self.spectroDraw(
+                    ffti, title, widget.figure, widget.canvas
+                )
+
+                
 
 #Change the color palette 
     def colorSpectro(self, color, action):
