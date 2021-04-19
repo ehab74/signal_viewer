@@ -742,8 +742,10 @@ class Ui_MainWindow(QMainWindow):
                 # and windowsItr not in self.deletedWinds
                 self.mdi.activeSubWindow() == widget
             ):
-                windowsItr -= 1
+                if widget.windowTitle().find('modified')==-1:
+                    windowsItr-=1
                 break
+
             windowsItr += 1
 
         title = self.mdi.subWindowList()[windowsItr].windowTitle()
