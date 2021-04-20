@@ -70,9 +70,9 @@ class SpectroWidget(QWidget):
 
 
 # A layout that contains the Equalizer window
-class EQWindow(QWidget):
+class EQWidget(QWidget):
     def __init__(self, parent=None):
-        super(EQWindow, self).__init__(parent)
+        super(EQWidget, self).__init__(parent)
         self.sliders = []
         self.gainLabels = []
         self.bands = []
@@ -105,15 +105,13 @@ class EQWindow(QWidget):
         self.sliders[ind].setMaximum(5)
         self.sliders[ind].setMinimum(0)
         self.sliders[ind].setValue(1)
-        self.sliders[ind].setTickPosition(QSlider.TicksBothSides)
-        self.sliders[ind].setTickInterval(1)
         self.sliders[ind].setSingleStep(1)
-        self.sliders[ind].valueChanged.connect(lambda: self.updateWindows(ind))
+        self.sliders[ind].sliderReleased.connect(lambda: self.updateWindows(ind))
         self.bands[ind] = txt
         freq = QLabel()
         freq.setText(str(label) + " Hz")
         self.gainLabels[ind] = QLabel()
-        self.gainLabels[ind].setText("1.0")
+        self.gainLabels[ind].setText("1")
         vbox = QVBoxLayout()
         vbox.addWidget(self.sliders[ind], alignment=Qt.AlignHCenter)
         vbox.addWidget(freq, alignment=Qt.AlignCenter)
@@ -125,7 +123,7 @@ class EQWindow(QWidget):
     # Update  the graph and the spectrogram when the equalizer is used
     def updateWindows(self, ind):
         self.gainValues[ind] = self.sliders[ind].value()
-        self.gainLabels[ind].setText(str(float(self.sliders[ind].value())))
+        self.gainLabels[ind].setText(str(self.sliders[ind].value()))
         for i in range(
             (self.bands[ind] - int((len(ui.freqs[self.index]) // 2) / 10)),
             self.bands[ind],
@@ -209,14 +207,15 @@ class Ui_MainWindow(QMainWindow):
 
     def Equalizer(self):
         self.activeWinds += 1
-        self.EQWind = EQWindow()
+        self.EQWidget = EQWidget()
         mydialog = MdiWind(self)
         icon = QtGui.QIcon()
         icon.addPixmap(
             QtGui.QPixmap("icons/sig.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off
         )
         mydialog.setWindowIcon(icon)
-        mydialog.setWidget(self.EQWind)
+        mydialog.setWidget(self.EQWidget)
+        mydialog.setFixedHeight(180)
         self.mdi.addSubWindow(mydialog)
         mydialog.show()
         self.EQcount += 1
@@ -270,13 +269,13 @@ class Ui_MainWindow(QMainWindow):
             startInd = 12 if subWindowTitle[1] == "#" else 13
 
         if subWindowTitle[startInd + 1] != "#":
-            subWindowIndex = int(subWindowTitle[startInd]) * 10 + int(
+            index = int(subWindowTitle[startInd]) * 10 + int(
                 subWindowTitle[startInd + 1]
             )
         else:
-            subWindowIndex = int(subWindowTitle[startInd])
+            index = int(subWindowTitle[startInd])
 
-        return subWindowIndex
+        return index
 
     def getWindow(self, windowTitle, index):
         if windowTitle.find(".wav") != -1 and windowTitle.find("FFT") == -1:
@@ -345,11 +344,11 @@ class Ui_MainWindow(QMainWindow):
         titlesList.sort()
 
         for title in titlesList:
-            subWindowIndex = self.titleIndex(title[0])
+            index = self.titleIndex(title[0])
             if title[0][-1] != "x":
                 # The widgets are transformed into images to get inserted into the PDF
-                graphPlot = self.graphDraw(self.signals[subWindowIndex - 1])
-                imgName = f"fileName{str(subWindowIndex)}.png"
+                graphPlot = self.graphDraw(self.signals[index - 1])
+                imgName = f"fileName{str(index)}.png"
                 exporter = pg.exporters.ImageExporter(graphPlot.plotItem)
                 exporter.parameters()["width"] = 250
                 exporter.parameters()["height"] = 250
@@ -370,7 +369,7 @@ class Ui_MainWindow(QMainWindow):
                 os.remove(imgName)
             else:
                 self.spectroDraw(widget_list[title[1]], "pdf")
-                imgName = f".fileName{str(subWindowIndex + 99)}.png"
+                imgName = f".fileName{str(index + 99)}.png"
                 widget_list[title[1]].figure.savefig(imgName)
                 pdf.image(
                     imgName,
@@ -396,89 +395,65 @@ class Ui_MainWindow(QMainWindow):
 
     # Scroll/Zoom
     def doubleZoom(self, subwindow, type):
-        subWindowIndex = self.titleIndex(subwindow.windowTitle())
-        OGWindow, ModWindow, flag = self.getWindow(
-            subwindow.windowTitle(), subWindowIndex
-        )
+        index = self.titleIndex(subwindow.windowTitle())
+        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), index)
         OGIndex = self.titleIndex(OGWindow.windowTitle())
         if type == "in":
-            self.zoomIn(OGWindow, OGIndex)
+            self.zoom(OGWindow, OGIndex, "in")
         else:
-            self.zoomOut(OGWindow, OGIndex)
+            self.zoom(OGWindow, OGIndex, "out")
         if flag:
             if type == "in":
-                self.zoomIn(ModWindow, OGIndex + 1)
+                self.zoom(ModWindow, OGIndex + 1, "in")
             else:
-                self.zoomOut(ModWindow, OGIndex + 1)
+                self.zoom(ModWindow, OGIndex + 1, "out")
 
     def doubleScroll(self, subwindow, type):
-        subWindowIndex = self.titleIndex(subwindow.windowTitle())
-        OGWindow, ModWindow, flag = self.getWindow(
-            subwindow.windowTitle(), subWindowIndex
-        )
+        index = self.titleIndex(subwindow.windowTitle())
+        OGWindow, ModWindow, flag = self.getWindow(subwindow.windowTitle(), index)
         OGIndex = self.titleIndex(OGWindow.windowTitle())
         if type == "left":
-            self.scrollLeft(OGWindow, OGIndex)
+            self.scroll(OGWindow, OGIndex, -1)
         else:
-            self.scrollRight(OGWindow, OGIndex)
+            self.scroll(OGWindow, OGIndex, 1)
         if flag:
             if type == "left":
-                self.scrollLeft(ModWindow, OGIndex + 1)
+                self.scroll(ModWindow, OGIndex + 1, -1)
             else:
-                self.scrollRight(ModWindow, OGIndex + 1)
+                self.scroll(ModWindow, OGIndex + 1, 1)
 
-    def scrollRight(self, subWindow, subWindowIndex):
-        subWindow.graphWidget.plotItem.getViewBox().translateBy(x=100, y=0)
-        self.graphRangesX[subWindowIndex - 1] += 100
+    def scroll(self, subWindow, index, sign):
+        subWindow.graphWidget.plotItem.getViewBox().translateBy(x=sign * 100, y=0)
+        self.graphRangesX[index - 1] += sign * 100
 
-    def scrollLeft(self, subWindow, subWindowIndex):
-        subWindow.graphWidget.plotItem.getViewBox().translateBy(x=-100, y=0)
-        self.graphRangesX[subWindowIndex - 1] += -100
-
-    def zoomIn(self, subWindow, subWindowIndex):
-        self.zoomRanges[subWindowIndex - 1] = (
+    def zoom(self, subWindow, index, type):
+        self.zoomRanges[index - 1] = (
             subWindow.graphWidget.viewRange()[0][1]
             - subWindow.graphWidget.viewRange()[0][0]
         )
-        zoomRange = self.zoomRanges[subWindowIndex - 1]
+        zoomFactor = 0.5 if type == "in" else 2
 
-        if self.zoomRanges[subWindowIndex - 1] > 50:
-            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=0.5, y=1)
-            self.zoomRanges[subWindowIndex - 1] *= 0.5
-            self.graphRangesX[subWindowIndex - 1] = subWindow.graphWidget.viewRange()[
-                0
-            ][0]
+        if type == "in":
+            zoomRange = self.zoomRanges[index - 1]
+            if self.plays and zoomRange >= len(self.signals[index - 1]):
+                self.play(subWindow)
 
-            # Disables the zoom in button when the user reaches a certain range
-            if self.zoomRanges[subWindowIndex - 1] <= 50:
-                self.actionZoomIn.setEnabled(False)
-            if self.zoomRanges[subWindowIndex - 1] < len(
-                self.signals[subWindowIndex - 1]
-            ):
-                # Enables the zoom out button when the user reaches a certain zoom-in-range
-                self.actionZoomOut.setEnabled(True)
-        if self.plays and zoomRange >= len(self.signals[subWindowIndex - 1]):
-            self.play(subWindow)
+        if self.zoomRanges[index - 1] > 50 or self.zoomRanges[index - 1] < len(
+            self.signals[index - 1]
+        ):
+            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=zoomFactor, y=1)
+            self.zoomRanges[index - 1] *= zoomFactor
 
-    def zoomOut(self, subWindow, subWindowIndex):
-        self.zoomRanges[subWindowIndex - 1] = (
-            subWindow.graphWidget.viewRange()[0][1]
-            - subWindow.graphWidget.viewRange()[0][0]
-        )
+        self.graphRangesX[index - 1] = subWindow.graphWidget.viewRange()[0][0]
 
-        if self.zoomRanges[subWindowIndex - 1] < len(self.signals[subWindowIndex - 1]):
-            subWindow.graphWidget.plotItem.getViewBox().scaleBy(x=2, y=1)
-            self.zoomRanges[subWindowIndex - 1] *= 2
-            self.graphRangesX[subWindowIndex - 1] = subWindow.graphWidget.viewRange()[
-                0
-            ][0]
-
-            if self.zoomRanges[subWindowIndex - 1] >= len(
-                self.signals[subWindowIndex - 1]
-            ):
-                self.actionZoomOut.setEnabled(False)
-            if self.zoomRanges[subWindowIndex - 1] > 50:
-                self.actionZoomIn.setEnabled(True)
+        if self.zoomRanges[index - 1] >= len(self.signals[index - 1]):
+            self.actionZoomOut.setEnabled(False)
+        else:
+            self.actionZoomOut.setEnabled(True)
+        if self.zoomRanges[index - 1] > 50:
+            self.actionZoomIn.setEnabled(True)
+        else:
+            self.actionZoomIn.setEnabled(False)
 
     # Play/Pause
     def playSound(self, subWindow):
@@ -494,32 +469,30 @@ class Ui_MainWindow(QMainWindow):
         self.speedFactor = value
 
     def play(self, subWindow):
-        subWindowIndex = self.titleIndex(subWindow.windowTitle())
+        index = self.titleIndex(subWindow.windowTitle())
         self.plays = True
-        self.zoomRanges[subWindowIndex - 1] = (
+        self.zoomRanges[index - 1] = (
             subWindow.graphWidget.viewRange()[0][1]
             - subWindow.graphWidget.viewRange()[0][0]
         )
 
         step = 0  # Cumulative variable that increases with time
         # Check if this is the max limit of the signal is reached or not
-        while step + 40 + self.graphRangesX[subWindowIndex - 1] <= len(
-            self.signals[subWindowIndex - 1]
-            # while subWindow.graphWidget.viewRange()[0][1] < len(self.signals[subWindowIndex-1]):
+        while step + 40 + self.graphRangesX[index - 1] <= len(
+            self.signals[index - 1]
+            # while subWindow.graphWidget.viewRange()[0][1] < len(self.signals[index-1]):
         ):
 
             if not self.plays:
-                self.graphRangesX[subWindowIndex - 1] += step
+                self.graphRangesX[index - 1] += step
                 break
             step += 40 * self.speedFactor
-            self.playProcess(subWindow, subWindowIndex, step)
+            self.playProcess(subWindow, index, step)
 
-    def playProcess(self, subWindow, subWindowIndex, step):
+    def playProcess(self, subWindow, index, step):
         subWindow.graphWidget.setXRange(
-            self.graphRangesX[subWindowIndex - 1] + step,
-            self.zoomRanges[subWindowIndex - 1]
-            + step
-            + self.graphRangesX[subWindowIndex - 1],
+            self.graphRangesX[index - 1] + step,
+            self.zoomRanges[index - 1] + step + self.graphRangesX[index - 1],
         )
 
         QtWidgets.QApplication.processEvents()
@@ -561,44 +534,44 @@ class Ui_MainWindow(QMainWindow):
     def spectroDraw(self, widget, pdf):
         # Draws the spectrogram of the signal
         title = widget.windowTitle()
-        subWindowIndex = self.titleIndex(title)
+        index = self.titleIndex(title)
         widget.figure.clear()
 
         f, t, Sxx = sig.spectrogram(
-            self.signals[subWindowIndex - 1],
+            self.signals[index - 1],
             fs=200 if title.find(".wav") == -1 else self.sampling_rate,
         )
 
         SxxDecibel = 10 * np.log10(Sxx)
         ax = widget.figure.add_subplot()
 
-        if self.intensity[subWindowIndex - 1][1] == -1:
+        if self.intensity[index - 1][1] == -1:
             for i in range(4):
                 if i % 2:
-                    self.intensity[subWindowIndex - 1][i] = SxxDecibel.max()
+                    self.intensity[index - 1][i] = SxxDecibel.max()
                 else:
-                    self.intensity[subWindowIndex - 1][i] = (
+                    self.intensity[index - 1][i] = (
                         SxxDecibel.min()
                         if SxxDecibel.min() != float("-inf")
                         else SxxDecibel.max() - 200
                     )
         elif pdf != "pdf":
-            self.intensity[subWindowIndex - 1][0] = self.intensityMin
-            self.intensity[subWindowIndex - 1][1] = self.intensityMax
+            self.intensity[index - 1][0] = self.intensityMin
+            self.intensity[index - 1][1] = self.intensityMax
         img = ax.pcolormesh(
             t,
             f,
             SxxDecibel,
             cmap=self.ColorMap,
-            vmin=self.intensity[subWindowIndex - 1][0],
-            vmax=self.intensity[subWindowIndex - 1][1],
+            vmin=self.intensity[index - 1][0],
+            vmax=self.intensity[index - 1][1],
         )
         widget.figure.colorbar(img, ax=ax)
         widget.canvas.draw()
 
     def Spectrogram(self, signal, title):
         # Inserts the drawn spectrogram into a widget
-        subWindowIndex = self.titleIndex(title)
+        index = self.titleIndex(title)
         mydialog = MdiWind(self)
         mydialog.figure = plt.figure()
         mydialog.canvas = FigureCanvas(mydialog.figure)
@@ -615,20 +588,20 @@ class Ui_MainWindow(QMainWindow):
         for i in range(2):
             spectroWidget.layout().itemAt(i).widget().layout().itemAt(
                 0
-            ).widget().setMinimum(int(self.intensity[subWindowIndex - 1][2]))
+            ).widget().setMinimum(int(self.intensity[index - 1][2]))
 
             spectroWidget.layout().itemAt(i).widget().layout().itemAt(
                 0
-            ).widget().setMaximum(int(self.intensity[subWindowIndex - 1][3]))
+            ).widget().setMaximum(int(self.intensity[index - 1][3]))
 
             if not i:
                 spectroWidget.layout().itemAt(i).widget().layout().itemAt(
                     0
-                ).widget().setValue(int(self.intensity[subWindowIndex - 1][0]))
+                ).widget().setValue(int(self.intensity[index - 1][0]))
             else:
                 spectroWidget.layout().itemAt(i).widget().layout().itemAt(
                     0
-                ).widget().setValue(int(self.intensity[subWindowIndex - 1][1]))
+                ).widget().setValue(int(self.intensity[index - 1][1]))
 
         spectroWidget.addWidget(mydialog.canvas)
 
@@ -638,16 +611,16 @@ class Ui_MainWindow(QMainWindow):
 
     def checkTool(self, subWindow, type):
         # checks the selected tool
-        subWindowIndex = self.titleIndex(subWindow.windowTitle())
+        index = self.titleIndex(subWindow.windowTitle())
 
         self.windowsCount = self.windowsCount + 1
 
         if type == "s":
             self.initialize(0, 0, 0, 0, 0, 0, 0)
             self.fftInitialize(0, 0, 0, 0, 0)
-            self.Spectrogram(self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            self.Spectrogram(self.signals[index - 1], subWindow.windowTitle())
         else:
-            self.fftDraw(self.signals[subWindowIndex - 1], subWindow.windowTitle())
+            self.fftDraw(self.signals[index - 1], subWindow.windowTitle())
 
     # Checks if the active window is a spectrogram or an equilizer or a graph
     def checkWindow(self, subWindow):
@@ -684,25 +657,25 @@ class Ui_MainWindow(QMainWindow):
             windowsItr += 1
 
         title = self.mdi.subWindowList()[windowsItr].windowTitle()
-        subWindowIndex = self.titleIndex(title)
+        index = self.titleIndex(title)
         ffti = []
-        ffti = np.real_if_close(np.array(np.fft.ifft(self.fft[subWindowIndex - 1])))
+        ffti = np.real_if_close(np.array(np.fft.ifft(self.fft[index - 1])))
         mydialog = self.mdi.subWindowList()[windowsItr]
         self.mdi.subWindowList()[windowsItr - 1].graphWidget.setXRange(
-            self.graphRangesX[subWindowIndex - 2],
-            self.graphRangesX[subWindowIndex - 2] + self.zoomRanges[subWindowIndex - 2],
+            self.graphRangesX[index - 2],
+            self.graphRangesX[index - 2] + self.zoomRanges[index - 2],
         )
         self.mdi.subWindowList()[windowsItr - 1].graphWidget.setYRange(
-            self.signals[subWindowIndex - 2].min(),
-            self.signals[subWindowIndex - 2].max(),
+            self.signals[index - 2].min(),
+            self.signals[index - 2].max(),
         )
         mydialog.graphWidget = self.graphDraw(ffti)
         mydialog.graphWidget.setXRange(
-            self.graphRangesX[subWindowIndex - 2],
-            self.graphRangesX[subWindowIndex - 2] + self.zoomRanges[subWindowIndex - 2],
+            self.graphRangesX[index - 2],
+            self.graphRangesX[index - 2] + self.zoomRanges[index - 2],
         )
         mydialog.setWidget(mydialog.graphWidget)
-        self.signals[subWindowIndex - 1] = ffti
+        self.signals[index - 1] = ffti
         write(r"test.wav", self.sampling_rate, ffti.astype(np.float64))
 
     # Graph the fft of the signal
@@ -1208,9 +1181,9 @@ class Ui_MainWindow(QMainWindow):
         self.actionPause.setStatusTip(_translate("MainWindow", "Stops acqusition"))
         self.actionPause.setShortcut(_translate("MainWindow", "F6"))
         self.actionBackward.setText(_translate("MainWindow", "Backward"))
-        self.actionBackward.setShortcut(_translate("MainWindow", "Ctrl+Left"))
+        self.actionBackward.setShortcut(_translate("MainWindow", "Left"))
         self.actionForward.setText(_translate("MainWindow", "Forward"))
-        self.actionForward.setShortcut(_translate("MainWindow", "Ctrl+Right"))
+        self.actionForward.setShortcut(_translate("MainWindow", "Right"))
         self.actionZoomIn.setText(_translate("MainWindow", "Zoom In"))
         self.actionZoomIn.setStatusTip(_translate("MainWindow", "Zoom selected part"))
         self.actionZoomIn.setShortcut(_translate("MainWindow", "Ctrl+Up"))
