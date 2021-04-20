@@ -207,7 +207,7 @@ class Ui_MainWindow(QMainWindow):
     plays = False  # Checks if play is clicked
     speedFactor = 1
 
-    def equalizer(self):
+    def Equalizer(self):
         self.activeWinds += 1
         self.EQWind = EQWindow()
         mydialog = MdiWind(self)
@@ -827,7 +827,7 @@ class Ui_MainWindow(QMainWindow):
         self.initialize(ffti, len(samples), 0, 0, -1, 0, 0)
         self.fftInitialize(fft, fftAbs, fftPhase, freqs, copyFFT)
         self.Graph(ffti, signal_label + " modified")
-        self.equalizer()
+        self.Equalizer()
         write(r"test.wav", self.sampling_rate, samples.astype(np.float64))
         self.mdi.cascadeSubWindows()
 
@@ -1219,6 +1219,7 @@ class Ui_MainWindow(QMainWindow):
         self.actionZoomOut.setShortcut(_translate("MainWindow", "Ctrl+Down"))
         self.actionSpectrogram.setText(_translate("MainWindow", "Spectrogram..."))
         self.actionSpectrogram.setShortcut(_translate("MainWindow", "Ctrl+G"))
+        self.actionTile.setShortcut(_translate("MainWindow", "Ctrl+Shift+T"))
         self.actionFFT.setText(_translate("MainWindow", "FFT spectrum analysis"))
         self.actionFFT.setStatusTip(
             _translate("MainWindow", "Spectrum of the visible part of the signal")
